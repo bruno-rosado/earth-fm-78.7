@@ -1,5 +1,5 @@
-// AlbumCard3D: one card in the jukebox. A rounded colored plane with the track title.
-import { useMemo, useRef, useState } from 'react';
+// AlbumCard3D: one card in the jukebox. A rounded plane showing the cover (or a color) with the title below.
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Text } from '@react-three/drei';
 import * as THREE from 'three';
@@ -24,12 +24,40 @@ function roundedRect(w, h, r) {
     return s;
 }
 
+// ShapeGeometry UVs are raw positions; rescale them to 0-1 so a texture fills the card.
+function fitUvs(geometry, size) {
+    const uv = geometry.attributes.uv;
+    for (let i = 0; i < uv.count; i++) {
+        uv.setXY(i, uv.getX(i) / size + 0.5, uv.getY(i) / size + 0.5);
+    }
+    return geometry;
+}
+
 // index: this card's place in the list. activeIndex: the card in the middle.
 const AlbumCard3D = ({ track, index, activeIndex, isSelected, onSelect, radius, spacing }) => {
     const groupRef = useRef();
     const smooth = useRef(index - activeIndex); // smoothed offset from the center
     const [hovered, setHovered] = useState(false);
-    const geometry = useMemo(() => new THREE.ShapeGeometry(roundedRect(SIZE, SIZE, 0.12)), []);
+    const geometry = useMemo(() => fitUvs(new THREE.ShapeGeometry(roundedRect(SIZE, SIZE, 0.12)), SIZE), []);
+    const [cover, setCover] = useState(null);
+
+    // Load the cover without suspending the scene; a missing cover keeps the plain color.
+    useEffect(() => {
+        if (!track.cover) return undefined;
+        let texture = null;
+        let cancelled = false;
+        new THREE.TextureLoader().load(track.cover, (loaded) => {
+            texture = loaded;
+            if (cancelled) { loaded.dispose(); return; }
+            loaded.colorSpace = THREE.SRGBColorSpace;
+            setCover(loaded);
+        }, undefined, () => {});
+        return () => {
+            cancelled = true;
+            texture?.dispose();
+            setCover(null);
+        };
+    }, [track.cover]);
     const borderGeometry = useMemo(() => new THREE.ShapeGeometry(roundedRect(SIZE + BORDER * 2, SIZE + BORDER * 2, 0.12 + BORDER)), []);
 
     useFrame((state, delta) => {
@@ -60,11 +88,18 @@ const AlbumCard3D = ({ track, index, activeIndex, isSelected, onSelect, radius, 
                 </mesh>
             )}
             <mesh geometry={geometry}>
-                <meshBasicMaterial color={track.color ?? "rgb(29, 125, 224)"} toneMapped={false} />
+                {/* key: recreate the material when the cover arrives so its shader includes the map. */}
+                <meshBasicMaterial key={cover ? 'cover' : 'color'} map={cover} color={cover ? 'white' : track.color ?? 'rgb(29, 125, 224)'} toneMapped={false} />
             </mesh>
-            <Text position={[0, 0, 0.01]} fontSize={0.13} maxWidth={SIZE - 0.2} textAlign="center" color="white" anchorX="center" anchorY="middle">
-                {track.title}
-            </Text>
+            {cover ? (
+                <Text position={[0, -SIZE / 2 + 0.1, 0.01]} fontSize={0.1} maxWidth={SIZE - 0.2} textAlign="center" color="white" anchorX="center" anchorY="bottom" outlineWidth={0.012} outlineColor="black" outlineOpacity={0.8}>
+                    {track.title}
+                </Text>
+            ) : (
+                <Text position={[0, 0, 0.01]} fontSize={0.13} maxWidth={SIZE - 0.2} textAlign="center" color="white" anchorX="center" anchorY="middle">
+                    {track.title}
+                </Text>
+            )}
         </group>
     );
 };

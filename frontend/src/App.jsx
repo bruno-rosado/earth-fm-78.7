@@ -28,6 +28,7 @@ export default function App() {
       <div className="player-overlay">
         <MusicPlayer selectedTrack={selectedTrack} videoRef={videoRef} />
       </div>
+      <p className="browse-hint">Scroll or ← → to browse · click a card to select · space to play</p>
     </>
   );
 }

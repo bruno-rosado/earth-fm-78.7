@@ -1,46 +1,98 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { createMusicEvents, interpolateFeatures } from "./musicMapping.js";
+import {
+  createMusicEvents, DEFAULT_CONFIG, globeRotationFor, MODES, sampleCell, scanPosition, SCAN_PERIOD,
+} from "./musicMapping.js";
 
 const samples = JSON.parse(readFileSync(new URL("../../../../backend/data/features/ecco2_sst_flow.json", import.meta.url)));
-const config = {
-  bpm: 80, scale: ["D3", "F3", "G3", "A3", "C4", "D4"], rhythm_grid: "8n",
-  density_range: [0.2, 0.8], velocity_range: [0.25, 0.75],
-};
+const config = { ...DEFAULT_CONFIG, mode: "dorian", key: "D", rhythm_grid: "8n", bpm: 80 };
+const DURATION = 66.7;
 
-test("two-second features interpolate between samples and clamp at endpoints", () => {
-  assert.equal(interpolateFeatures(samples, -1), samples[0]);
-  assert.equal(interpolateFeatures(samples, 100), samples.at(-1));
-  const midpoint = interpolateFeatures(samples, 1);
-  assert.equal(midpoint.brightness, (samples[0].brightness + samples[1].brightness) / 2);
-  assert.ok(Math.abs(Object.values(midpoint.color).reduce((a, b) => a + b) - 1) < 1e-6);
-});
+function flatGrid(cell, rows = 4, cols = 6) {
+  return Array.from({ length: rows }, () => Array.from({ length: cols }, () => [...cell]));
+}
+const sample = (t, grid) => ({ t, brightness: 0.2, motion: 0, contrast: 0, color: {}, grid });
 
-test("real data produces deterministic notes on the beat grid within track duration", () => {
-  const events = createMusicEvents(config, samples, 66.7);
-  assert.ok(events.length > samples.length);
-  assert.deepEqual(events, createMusicEvents(config, samples, 66.7));
-  for (const event of events) {
-    assert.ok(event.t >= 0 && event.t < 66.7);
-    assert.ok(config.scale.includes(event.note));
-    assert.ok(event.velocity >= 0.25 && event.velocity <= 0.75);
-    assert.ok(event.filterFrequency >= 350 && event.filterFrequency <= 3550);
-    assert.ok(Math.abs(event.t / 0.375 - Math.round(event.t / 0.375)) < 1e-9);
+test("scan line turns westward one revolution per period, matching the globe rotation", () => {
+  assert.ok(Math.abs(scanPosition(0) - scanPosition(SCAN_PERIOD)) < 1e-9);
+  assert.ok(scanPosition(1) < scanPosition(0));
+  for (const t of [0, 7.3, 55]) {
+    const u = scanPosition(t);
+    assert.ok(u >= 0 && u < 1);
+    // At this rotation, u = 0.25 - θ/2π is the longitude facing the camera.
+    const facing = (0.25 - globeRotationFor(u) / (2 * Math.PI) + 1) % 1;
+    assert.ok(Math.abs(facing - u) < 1e-9);
   }
 });
 
-test("motion changes note density", () => {
-  const sparse = createMusicEvents({ ...config, density_range: [0.1, 0.1] }, samples, 66.7);
-  const dense = createMusicEvents({ ...config, density_range: [1, 1] }, samples, 66.7);
-  assert.ok(dense.length > sparse.length * 5);
+test("cells interpolate in time and wrap across the date line", () => {
+  const cold = flatGrid([1, 0, 0, 0]);
+  const warm = flatGrid([1, 1, 1, 0]);
+  const features = [sample(0, cold), sample(2, warm)];
+  assert.deepEqual(sampleCell(features, 1, 0.5, 0), [1, 0.5, 0.5, 0]);
+  assert.deepEqual(sampleCell(features, -1, 0.5, 0), [1, 0, 0, 0]);
+  assert.deepEqual(sampleCell(features, 9, 0.5, 0), [1, 1, 1, 0]);
+  const edge = flatGrid([0, 0, 0, 0]);
+  edge[0][5] = [1, 1, 1, 1];
+  // u = 0 sits between the last and first column, half of each.
+  assert.deepEqual(sampleCell([sample(0, edge)], 0, 0, 0), [0.5, 0.5, 0.5, 0.5]);
 });
 
-test("constant, neutral data stays finite without spurious noise", () => {
-  const neutral = [{ t: 0, brightness: 0.2, motion: 0, contrast: 0,
-    color: { red: 0, yellow: 0, green: 0, cyan: 0, blue: 0, magenta: 0, neutral: 1 } }];
-  const events = createMusicEvents(config, neutral, 5);
-  assert.ok(events.length);
-  assert.ok(events.every((event) => Number.isFinite(event.velocity) && Number.isFinite(event.filterFrequency)));
-  assert.equal(new Set(events.map((event) => event.note)).size, 1);
+test("real data produces deterministic, in-range notes on the beat grid", () => {
+  const events = createMusicEvents(config, samples, DURATION);
+  assert.deepEqual(events, createMusicEvents(config, samples, DURATION));
+  assert.ok(events.leads.length > 50);
+  assert.ok(events.chords.length > 5);
+  assert.ok(events.chords.every((chord, i) => i === 0 || chord.root !== events.chords[i - 1].root));
+  assert.ok(Math.abs(events.chords.at(-1).t + events.chords.at(-1).duration - DURATION) < 1e-9);
+  const interval = 60 / config.bpm / 2;
+  for (const lead of events.leads) {
+    assert.ok(lead.t >= 0 && lead.t < DURATION);
+    assert.ok(Math.abs(lead.t / interval - Math.round(lead.t / interval)) < 1e-9);
+    assert.ok(lead.velocity >= 0 && lead.velocity <= config.velocity_range[1]);
+    assert.ok(lead.pan >= -0.8 && lead.pan <= 0.8);
+    assert.ok(Number.isInteger(lead.note));
+  }
+  for (const chord of events.chords) {
+    assert.equal(chord.notes.length, 3);
+    assert.ok(chord.notes.at(-1) - chord.notes[0] < 12, "pad voicing stays within an octave");
+  }
+});
+
+test("lead notes are chord tones, and northern bands sound higher than southern ones", () => {
+  const { leads, chords } = createMusicEvents(config, samples, DURATION);
+  for (const lead of leads) {
+    const chord = chords.findLast((c) => c.t <= lead.t);
+    assert.ok(chord.pitchClasses.includes(lead.note % 12));
+  }
+  const average = (row) => {
+    const notes = leads.filter((lead) => lead.row === row).map((lead) => lead.note);
+    return notes.reduce((a, b) => a + b, 0) / notes.length;
+  };
+  assert.ok(average(2) > average(4) && average(4) > average(6));
+});
+
+test("land is silent and faster currents play more often", () => {
+  const land = createMusicEvents(config, [sample(0, flatGrid([0, 0.5, 1, 0]))], 10);
+  assert.equal(land.leads.length, 0);
+  const slow = createMusicEvents(config, [sample(0, flatGrid([1, 0.5, 0, 0]))], 10);
+  const fast = createMusicEvents(config, [sample(0, flatGrid([1, 0.5, 1, 0]))], 10);
+  assert.ok(fast.leads.length > slow.leads.length * 3);
+});
+
+test("eastward and westward currents pan to opposite sides", () => {
+  const east = createMusicEvents(config, [sample(0, flatGrid([1, 0.5, 1, 1]))], 5);
+  const west = createMusicEvents(config, [sample(0, flatGrid([1, 0.5, 1, -1]))], 5);
+  assert.ok(east.leads.every((lead) => lead.pan > 0));
+  assert.ok(west.leads.every((lead) => lead.pan < 0));
+});
+
+test("every mode and the default style produce music", () => {
+  for (const mode of Object.keys(MODES)) {
+    const events = createMusicEvents({ ...DEFAULT_CONFIG, mode }, samples, DURATION);
+    assert.ok(events.leads.length && events.chords.length, mode);
+  }
+  assert.throws(() => createMusicEvents({ ...config, mode: "locrian" }, samples, DURATION));
+  assert.throws(() => createMusicEvents(config, [], DURATION));
 });

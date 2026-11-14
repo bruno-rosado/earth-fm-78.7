@@ -29,12 +29,16 @@ const Jukebox3D = ({ tracks, selectedTrack, onSelect }) => {
             setActiveIndex((i) => Math.max(0, Math.min(tracks.length - 1, i + dir)));
 
         const onWheel = (e) => {
+            if (e.target.closest?.('.player-overlay')) return; // scrolling the player panel
             const now = Date.now();
             if (now - lastWheel.current < 150) return; // one step per 150ms (wheels fire a lot)
             lastWheel.current = now;
             move(e.deltaY > 0 || e.deltaX > 0 ? 1 : -1);
         };
         const onKey = (e) => {
+            // Leave keys alone in form controls, and don't steal Enter from buttons.
+            if (e.target.closest?.('input, textarea, select')) return;
+            if (e.key === 'Enter' && e.target.closest?.('button, summary')) return;
             if (e.key === 'ArrowRight') move(1);
             else if (e.key === 'ArrowLeft') move(-1);
             else if (e.key === 'Enter' && tracks[activeIndex]) onSelect(tracks[activeIndex]);

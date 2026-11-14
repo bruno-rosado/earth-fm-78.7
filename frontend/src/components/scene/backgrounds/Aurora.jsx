@@ -3,8 +3,7 @@ import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { auroraVertex, auroraFragment } from './auroraShader';
 
-// getLevel: optional function returning music loudness 0-1 (Dev 4 will provide it).
-// Until then we fake a pulse so you can see it react.
+// getLevel: optional function returning music loudness 0-1. Without it, a slow pulse.
 const Aurora = ({ getLevel }) => {
     const matRef = useRef();
 
@@ -21,7 +20,9 @@ const Aurora = ({ getLevel }) => {
         const u = matRef.current.uniforms;
         // Fade in over ~1 second (this component is re-mounted when the track changes, so it restarts at 0).
         u.uOpacity.value = Math.min(1, u.uOpacity.value + delta / 1);
-        u.uLevel.value = getLevel ? getLevel() : 0.5 + 0.5 * Math.sin(time * 2); // fake pulse
+        // Ease toward the target so the shader never jumps.
+        const target = getLevel ? getLevel() : 0.3 + 0.1 * Math.sin(time * 0.5);
+        u.uLevel.value += (target - u.uLevel.value) * Math.min(1, delta * 4);
         // Add up the animation clock bit by bit: louder = faster, WITHOUT the phase jumping around.
         u.uTime.value += delta * (0.1 + u.uLevel.value * 0.5);
     });

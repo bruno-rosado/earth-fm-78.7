@@ -4,7 +4,11 @@ import { Stars } from '@react-three/drei';
 import { getBackground } from './backgrounds';
 import Globe from './Globe';
 import Jukebox3D from './Jukebox3D';
+import { sonification } from '../../services/tone/sonificationState';
 import '../../styles/components/scene.css';
+
+// The aurora breathes slowly when idle and follows the music's loudness when playing.
+const musicLevel = () => (sonification.active ? 0.2 + sonification.getLevel() * 0.8 : 0.25);
 
 // Props: tracks (array), selectedTrack (object or null), onSelect(track).
 const Scene = ({ tracks, selectedTrack, onSelect, videoRef }) => {
@@ -24,7 +28,7 @@ const Scene = ({ tracks, selectedTrack, onSelect, videoRef }) => {
                 <Stars radius={50} depth={20} count={2000} fade />
 
                 {/* key = track id: when it changes React re-creates the background, so it fades in again. */}
-                <Background key={selectedTrack?.id ?? 'none'} />
+                <Background key={selectedTrack?.id ?? 'none'} getLevel={musicLevel} />
 
                 <Globe videoUrl={selectedTrack?.video} playbackVideoRef={videoRef} />
                 <Jukebox3D tracks={tracks} selectedTrack={selectedTrack} onSelect={onSelect} />
