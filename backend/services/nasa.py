@@ -176,7 +176,8 @@ def search(query, limit=12):
     if not query:
         return []
     def run():
-        data = _get_json(f"{API}/search/", {"search": query, "limit": limit * 2})
+        # A few spares cover results without a usable movie; each costs a detail fetch.
+        data = _get_json(f"{API}/search/", {"search": query, "limit": limit + 6})
         results = data.get("results", []) if isinstance(data, dict) else []
         ids = [r["id"] for r in results if r.get("result_type") in VIDEO_TYPES and isinstance(r.get("id"), int)]
         return cards(ids)[:limit]
