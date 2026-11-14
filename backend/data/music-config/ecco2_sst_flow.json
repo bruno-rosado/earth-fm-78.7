@@ -1,0 +1,30 @@
+{
+  "source_hash": "dc60e63307e2481b8a75ff2ad79c94f3d211cd58f4c7aa78e8c5404130b18f81",
+  "config": {
+    "schema_version": 1,
+    "track_id": "ecco2_sst_flow",
+    "bpm": 88,
+    "instrument": "synth",
+    "scale": [
+      "C3",
+      "D3",
+      "F3",
+      "G3",
+      "A3",
+      "C4",
+      "D4",
+      "F4",
+      "G4"
+    ],
+    "rhythm_grid": "8n",
+    "note_duration": "8n",
+    "density_range": [
+      0.4,
+      0.85
+    ],
+    "velocity_range": [
+      0.2,
+      0.6
+    ]
+  }
+}
