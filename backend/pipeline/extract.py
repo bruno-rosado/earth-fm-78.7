@@ -12,8 +12,13 @@ import cv2
 import numpy as np
 
 
-INTERVAL_SECONDS = 2
+INTERVAL_SECONDS = 1
 COLOR_NAMES = ("red", "yellow", "green", "cyan", "blue", "magenta")
+# The map is equirectangular: rows are latitude bands (north first), columns are
+# longitude slices (west first). The player scans one column at a time.
+GRID_ROWS = 8
+GRID_COLS = 24
+FLOW_WIDTH = 640
 
 
 def nasa_url(url):
@@ -77,10 +82,89 @@ def extract_track(nasa_id, video_path, track_id):
     }
 
 
+def colored_mask(hsv):
+    return (hsv[:, :, 1] >= 32) & (hsv[:, :, 2] >= 32)
+
+
+def warmth(hue):
+    """Map an OpenCV hue (0-179) on a blue-to-red colormap to 0 (cold) .. 1 (warm)."""
+    hue = hue.astype(np.float32)
+    return np.where(hue > 150, 1.0, np.clip(1 - hue / 120, 0, 1))
+
+
+def cell_slices(length, count):
+    edges = np.linspace(0, length, count + 1).round().astype(int)
+    return [slice(start, stop) for start, stop in zip(edges, edges[1:])]
+
+
+def grid_features(frame, following):
+    """Per cell: [presence, temperature, raw flow speed, flow direction].
+
+    Flow is measured between a sampled frame and the frame right after it, so it
+    reflects how fast the drawn currents are moving at that moment. Speed is
+    normalized across the whole video in finish_grids.
+    """
+    height = round(frame.shape[0] * FLOW_WIDTH / frame.shape[1])
+    small = cv2.resize(frame, (FLOW_WIDTH, height), interpolation=cv2.INTER_AREA)
+    hsv = cv2.cvtColor(small, cv2.COLOR_BGR2HSV)
+    colored = colored_mask(hsv)
+    heat = warmth(hsv[:, :, 0])
+    gray = cv2.cvtColor(small, cv2.COLOR_BGR2GRAY)
+    if following is None:
+        flow = np.zeros((*gray.shape, 2), np.float32)
+    else:
+        next_gray = cv2.cvtColor(
+            cv2.resize(following, (FLOW_WIDTH, height), interpolation=cv2.INTER_AREA),
+            cv2.COLOR_BGR2GRAY,
+        )
+        flow = cv2.calcOpticalFlowFarneback(gray, next_gray, None, 0.5, 3, 15, 3, 5, 1.2, 0)
+    speed = np.hypot(flow[:, :, 0], flow[:, :, 1])
+
+    grid = []
+    for rows in cell_slices(height, GRID_ROWS):
+        band = []
+        for cols in cell_slices(FLOW_WIDTH, GRID_COLS):
+            mask = colored[rows, cols]
+            count = np.count_nonzero(mask)
+            if count == 0:
+                band.append([0.0, 0.0, 0.0, 0.0])
+                continue
+            cell_speed = float(np.mean(speed[rows, cols][mask]))
+            dx = float(np.mean(flow[rows, cols, 0][mask]))
+            band.append([
+                count / mask.size,
+                float(np.mean(heat[rows, cols][mask])),
+                cell_speed,
+                max(-1.0, min(1.0, dx / cell_speed)) if cell_speed > 1e-6 else 0.0,
+            ])
+        grid.append(band)
+    return grid
+
+
+def finish_grids(features):
+    """Smooth flow over neighboring samples, then scale speed to 0-1.
+
+    Single frame pairs are noisy, so speed and direction use a 1-2-1 average over
+    time. Speed is divided by the 98th percentile of ocean cells, so the busiest
+    currents reach 1.
+    """
+    grids = np.array([sample["grid"] for sample in features], dtype=np.float64)
+    if len(grids) > 2:
+        padded = np.concatenate([grids[:1], grids, grids[-1:]])
+        grids[..., 2:] = (padded[:-2, ..., 2:] + 2 * padded[1:-1, ..., 2:] + padded[2:, ..., 2:]) / 4
+    speeds = grids[..., 2][grids[..., 0] > 0]
+    scale = float(np.percentile(speeds, 98)) if speeds.size else 0.0
+    grids[..., 2] = np.clip(grids[..., 2] / scale, 0, 1) if scale > 0 else 0
+    grids[..., 3] = np.clip(grids[..., 3], -1, 1)
+    grids[grids[..., 0] == 0] = 0
+    for sample, grid in zip(features, grids.round(4)):
+        sample["grid"] = grid.tolist()
+
+
 def frame_features(frame, previous_gray):
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-    colored = (hsv[:, :, 1] >= 32) & (hsv[:, :, 2] >= 32)
+    colored = colored_mask(hsv)
     hue_bins = np.bincount(hsv[:, :, 0][colored] // 30, minlength=6)
     pixel_count = gray.size
     color = {
@@ -114,19 +198,28 @@ def extract_features(video_path):
         reported_frames = capture.get(cv2.CAP_PROP_FRAME_COUNT)
         features = []
         previous_gray = None
+        pending = None  # a sampled frame waiting for its next frame to measure flow
         frame_index = 0
         sample_index = 0
         next_frame = 0
         while capture.grab():
-            if frame_index == next_frame:
+            sampled = frame_index == next_frame
+            if sampled or pending is not None:
                 ok, frame = capture.retrieve()
                 if not ok or frame is None:
                     raise ValueError(f"Could not decode frame {frame_index}")
-                values, previous_gray = frame_features(frame, previous_gray)
-                features.append({"t": frame_index / fps, **values})
-                sample_index += 1
-                next_frame = round(sample_index * INTERVAL_SECONDS * fps)
+                if pending is not None:
+                    pending["grid"] = grid_features(pending.pop("frame"), frame)
+                    pending = None
+                if sampled:
+                    values, previous_gray = frame_features(frame, previous_gray)
+                    pending = {"t": round(frame_index / fps, 4), **values, "frame": frame}
+                    features.append(pending)
+                    sample_index += 1
+                    next_frame = round(sample_index * INTERVAL_SECONDS * fps)
             frame_index += 1
+        if pending is not None:
+            pending["grid"] = grid_features(pending.pop("frame"), None)
 
         if not features:
             raise ValueError(f"Video contains no readable frames: {video_path}")
@@ -135,6 +228,7 @@ def extract_features(video_path):
                 f"Video stopped after {frame_index} frames; "
                 f"metadata reports {reported_frames:g}"
             )
+        finish_grids(features)
         return features
     finally:
         capture.release()
@@ -146,12 +240,17 @@ def main():
     parser.add_argument(
         "output", type=Path, help="Path to the {id}.json file in a features directory"
     )
-    parser.add_argument("--nasa-id", type=int, required=True, help="NASA SVS visualization ID")
+    parser.add_argument("--nasa-id", type=int, help="NASA SVS visualization ID")
+    parser.add_argument(
+        "--features-only",
+        action="store_true",
+        help="Only rewrite the feature file; leave tracks.json unchanged",
+    )
     args = parser.parse_args()
 
     try:
-        if args.nasa_id <= 0:
-            raise ValueError("NASA visualization ID must be positive")
+        if not args.features_only and (args.nasa_id is None or args.nasa_id <= 0):
+            raise ValueError("A positive --nasa-id is required unless --features-only is set")
         if (
             args.output.parent.name != "features"
             or args.output.suffix != ".json"
@@ -159,6 +258,12 @@ def main():
         ):
             raise ValueError("Feature output must be {id}.json in a features directory")
         track_id = args.output.stem
+        if args.features_only:
+            features = extract_features(args.video)
+            args.output.parent.mkdir(parents=True, exist_ok=True)
+            args.output.write_text(json.dumps(features, separators=(",", ":")) + "\n", encoding="utf-8")
+            print(f"Wrote {len(features)} samples to {args.output}")
+            return
         track_output = args.output.parent.parent / "tracks.json"
         tracks = (
             json.loads(track_output.read_text(encoding="utf-8"))
@@ -178,7 +283,7 @@ def main():
         else:
             tracks.append(track)
         args.output.parent.mkdir(parents=True, exist_ok=True)
-        args.output.write_text(json.dumps(features, indent=2) + "\n", encoding="utf-8")
+        args.output.write_text(json.dumps(features, separators=(",", ":")) + "\n", encoding="utf-8")
         track_output.write_text(json.dumps(tracks, indent=2) + "\n", encoding="utf-8")
     except (ValueError, OSError, cv2.error) as error:
         parser.exit(1, f"Error: {error}\n")

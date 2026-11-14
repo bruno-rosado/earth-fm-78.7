@@ -6,8 +6,8 @@ music configuration in track metadata. All tracks live in this list; there is no
 separate `tracks/` directory.
 
 Each track has one feature file at `features/{id}.json`. The file contains a list
-of samples ordered by `t` (seconds from the start of the video), every 2 seconds.
-Feature names are:
+of samples ordered by `t` (seconds from the start of the video), every 1 second.
+Each sample has whole-frame features:
 
 - `brightness`: average frame brightness, from 0 to 1.
 - `motion`: change from the previous sampled frame, from 0 to 1; the first sample
@@ -17,6 +17,20 @@ Feature names are:
   The extractor groups colored pixels into hue bins; dark or low-saturation pixels
   count as neutral.
 - `contrast`: strength of light/dark differences, from 0 to 1.
+
+It also has a `grid` of the map: 8 latitude rows (north first) by 24 longitude
+columns (180°W first; the video is an equirectangular world map). Each cell is
+`[presence, temperature, speed, flow]`:
+
+- `presence` (0–1): share of colored data pixels; land and empty map are near 0.
+- `temperature` (0–1): mean position of the cell's colors on the blue → red
+  colormap. 0 is cold, 1 is warm; 0 when the cell has no data.
+- `speed` (0–1): optical-flow speed of the drawn currents, smoothed over
+  neighboring samples and scaled so the busiest 2% of ocean cells reach 1.
+- `flow` (−1 to 1): east/west direction of that motion; negative is westward.
+
+The player reads one column at a time (the longitude facing the viewer). See
+[`../MUSIC_CONFIG.md`](../MUSIC_CONFIG.md) for how the values become sound.
 
 ## Routes
 
@@ -32,13 +46,11 @@ Music settings stay separate from track metadata. See
 [`../MUSIC_CONFIG.md`](../MUSIC_CONFIG.md) for environment setup and the Tone.js
 config contract. Generated records live in `music-config/{track_id}.json`.
 
-The current track is `ecco2_sst_flow`, with 34 real samples at 0, 2, ..., 66 seconds.
-Its duration is 66.7 seconds, verified from the NASA MP4 movie header. The last
-sample time is not the video duration. Its metadata currently points to
-NASA-hosted video and cover URLs; downloading local media is deferred. When local
-copies are added to `backend/media/`, change `video` and `cover` to their
-`/media/<filename>` URLs. The frontend development server forwards `/media`
-requests to the backend.
+The current track is `ecco2_sst_flow`, with 67 samples at 0, 1, ..., 66 seconds.
+Its duration is 66.7 seconds. Its video (a 1280×640 compressed copy of the NASA
+movie) and cover are served locally from `backend/media/` at `/media/...`, so the
+browser can seek them and use them as a WebGL texture. The NASA-hosted MP4 is
+256 MB and does not allow cross-origin use from localhost.
 
 The source visualization is [NASA SVS 3912](https://svs.gsfc.nasa.gov/3912/).
 
@@ -52,6 +64,18 @@ backend/.venv/bin/python backend/pipeline/extract.py \
   backend/data/features/ecco2_sst_flow.json \
   --nasa-id 3912
 ```
+
+To recompute only the features from a local copy, leaving `tracks.json` alone:
+
+```bash
+backend/.venv/bin/python backend/pipeline/extract.py \
+  backend/media/ecco2_sst_flow.mp4 \
+  backend/data/features/ecco2_sst_flow.json \
+  --features-only
+```
+
+Changing features invalidates saved music configs (GET returns 409); the player
+falls back to its default style until a new one is generated.
 
 The feature filename determines the track ID. The extractor writes that feature
 file and adds or replaces the matching entry in `tracks.json`, preserving other

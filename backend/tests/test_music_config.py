@@ -18,9 +18,10 @@ DATA_DIR = Path(__file__).resolve().parents[1] / "data"
 TRACK = next(track for track in json.loads((DATA_DIR / "tracks.json").read_text()) if track["id"] == "ecco2_sst_flow")
 FEATURES = json.loads((DATA_DIR / "features" / f"{TRACK['id']}.json").read_text())
 CONFIG = {
-    "schema_version": 1, "track_id": TRACK["id"], "bpm": 80, "instrument": "synth",
-    "scale": ["D3", "F3", "G3", "A3", "C4", "D4"], "rhythm_grid": "8n",
-    "note_duration": "8n", "density_range": [0.2, 0.8], "velocity_range": [0.25, 0.75],
+    "schema_version": 2, "track_id": TRACK["id"], "bpm": 72, "key": "D", "mode": "dorian",
+    "low_octave": 3, "lead_instrument": "fm_synth", "pad_instrument": "am_synth",
+    "rhythm_grid": "8n", "note_duration": "4n", "density_range": [0.05, 0.4],
+    "velocity_range": [0.15, 0.5], "pad_level": 0.5, "reverb": 0.4,
 }
 
 
@@ -48,7 +49,7 @@ class MusicConfigTests(unittest.TestCase):
         method.return_value = SimpleNamespace(status="completed", output_text=json.dumps(CONFIG if output is None else output))
         return method
 
-    def test_generation_sends_full_files_and_schema_then_reuses_saved_config(self):
+    def test_generation_sends_summary_and_schema_then_reuses_saved_config(self):
         generate = self.mock_gemini()
         response = self.client.post(self.url, json={"prompt": "Gentle ocean music"})
         self.assertEqual(response.status_code, 200, response.text)
@@ -56,9 +57,10 @@ class MusicConfigTests(unittest.TestCase):
         request = generate.call_args.kwargs
         data = json.loads(request["input"])
         self.assertEqual(data["track"], TRACK)
-        self.assertEqual(data["features"], FEATURES)
+        self.assertNotIn("features", data)
         self.assertEqual(data["preferences"], "Gentle ocean music")
         self.assertEqual(data["summary"]["sample_count"], len(FEATURES))
+        self.assertEqual(len(data["summary"]["latitude_bands"]), len(FEATURES[0]["grid"]))
         self.assertEqual(request["response_format"]["schema"]["properties"]["track_id"]["enum"], [TRACK["id"]])
         self.assertFalse(request["store"])
         self.assertEqual(self.client.get(self.url).json(), CONFIG)
@@ -133,11 +135,11 @@ class MusicConfigTests(unittest.TestCase):
             service.read_config(TRACK, changed)
         self.assertEqual(result.exception.status_code, 409)
 
-    def test_schema_rejects_unsupported_instruments_notes_and_ranges(self):
+    def test_schema_rejects_unsupported_instruments_keys_and_ranges(self):
         for changes in [
-            {"instrument": "piano"}, {"bpm": 1000}, {"bpm": "80"},
-            {"scale": ["C4", "D4", "eval()"]}, {"scale": ["D4", "C4", "E4"]},
-            {"density_range": [0.9, 0.2]}, {"velocity_range": [0.2, 1.0]},
+            {"lead_instrument": "piano"}, {"bpm": 1000}, {"bpm": "80"}, {"schema_version": 1},
+            {"key": "H"}, {"key": "eval()"}, {"mode": "locrian"}, {"low_octave": 7},
+            {"density_range": [0.9, 0.2]}, {"velocity_range": [0.2, 1.0]}, {"reverb": 1},
             {"rhythm_grid": "nonsense"}, {"extra_code": "do something"},
         ]:
             with self.subTest(changes=changes), self.assertRaises(ValidationError):
@@ -150,6 +152,19 @@ class MusicConfigTests(unittest.TestCase):
         invalid[0]["color"]["neutral"] = 1
         with self.assertRaises(service.MusicConfigError):
             service.summarize_features(invalid)
+        for change in (lambda f: f[1]["grid"].pop(), lambda f: f[0]["grid"][2][3].__setitem__(2, 1.5),
+                       lambda f: f[0]["grid"][2][3].__setitem__(3, -2), lambda f: f[0].pop("grid")):
+            invalid = copy.deepcopy(FEATURES)
+            change(invalid)
+            with self.subTest(change=change), self.assertRaises(service.MusicConfigError):
+                service.summarize_features(invalid)
+
+    def test_summary_describes_each_latitude_band(self):
+        bands = service.summarize_features(FEATURES)["latitude_bands"]
+        self.assertEqual(len(bands), 8)
+        tropics, antarctic = bands[3], bands[-1]
+        self.assertGreater(tropics["temperature"], antarctic["temperature"])
+        self.assertLess(tropics["flow"], 0)  # equatorial currents run west
 
     def test_generation_request_rejects_excessive_prompt(self):
         self.assertEqual(self.client.post(self.url, json={"prompt": "x" * 1001}).status_code, 422)
