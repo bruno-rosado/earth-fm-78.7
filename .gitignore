@@ -5,4 +5,4 @@ dist
 .env
 docs/*
 tests/*
-/assets/visualizations/
+/assets/visualizations/ecco2_sst_flow.mp4
