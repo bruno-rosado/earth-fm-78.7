@@ -1,0 +1,10 @@
+[
+  {
+    "id": "demo",
+    "title": "Earth Demo",
+    "description": "Placeholder track for frontend development.",
+    "cover": "/media/demo.jpg",
+    "video": "/media/demo.mp4",
+    "duration": 60
+  }
+]
