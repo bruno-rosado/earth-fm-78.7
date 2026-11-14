@@ -25,7 +25,9 @@ of samples ordered by `t` (seconds from the start of the video), normally every
 
 `demo` is fake data with one track and one feature sample. Its duration is a
 placeholder. The referenced `/media/demo.mp4` and `/media/demo.jpg`
-are placeholder URLs; media files and media serving are not included in this step.
+are placeholder URLs; their media files are not bundled. Put videos and cover
+images in `backend/media/`; the backend serves them at `/media/<filename>`.
+The frontend development server forwards `/media` requests to the backend.
 Dev 2 will replace the sample with real measurements and the actual duration.
 
 The API resolves data paths relative to `backend/routes/tracks.py`, so it works when
