@@ -71,6 +71,8 @@ const AlbumCard3D = ({ track, index, activeIndex, isSelected, onSelect, radius, 
         g.position.x = Math.sin(angle) * radius;
         g.position.z = Math.cos(angle) * radius - radius;
         g.rotation.y = -angle; // turn to face the camera
+        // Cards shrink as they move away from the middle, so a long row stays compact.
+        g.scale.setScalar(1 - Math.min(0.45, Math.abs(smooth.current) * 0.16));
         // Hover lifts the card slightly.
         const targetY = hovered ? 0.15 : 0;
         g.position.y = THREE.MathUtils.lerp(g.position.y, targetY, Math.min(1, delta * 10));

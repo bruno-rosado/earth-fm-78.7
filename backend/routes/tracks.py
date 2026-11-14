@@ -4,9 +4,9 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException
 
 if __package__ == "routes":
-    from services.imports import read_tracks
+    from services.imports import read_tracks, remove
 else:
-    from ..services.imports import read_tracks
+    from ..services.imports import read_tracks, remove
 
 DATA_DIR = Path(__file__).resolve().parents[1] / "data"
 
@@ -24,6 +24,12 @@ def get_track(track_id: str):
         if track["id"] == track_id:
             return track
     raise HTTPException(status_code=404, detail="Track not found")
+
+
+@router.delete("/{track_id}", status_code=204)
+def delete_track(track_id: str):
+    if not remove(track_id):
+        raise HTTPException(status_code=404, detail="Only imported tracks can be removed")
 
 
 @router.get("/{track_id}/features")

@@ -81,6 +81,22 @@ def find_track(nasa_id):
     return next((t for t in read_tracks() if t.get("nasa_id") == nasa_id), None)
 
 
+def remove(track_id):
+    """Delete an imported track and its files. Catalog tracks can't be removed."""
+    with _tracks_lock:
+        library = _read("library.json")
+        track = next((t for t in library if t["id"] == track_id), None)
+        if track is None:
+            return False
+        _write_json(DATA_DIR / "library.json", [t for t in library if t["id"] != track_id], pretty=True)
+    for url in (track.get("video"), track.get("cover")):
+        if isinstance(url, str) and url.startswith("/media/"):
+            (MEDIA_DIR / url[len("/media/"):]).unlink(missing_ok=True)
+    (DATA_DIR / "features" / f"{track_id}.json").unlink(missing_ok=True)
+    (DATA_DIR / "music-config" / f"{track_id}.json").unlink(missing_ok=True)
+    return True
+
+
 def public(job):
     return {key: job[key] for key in ("id", "nasa_id", "status", "progress", "message", "track")}
 

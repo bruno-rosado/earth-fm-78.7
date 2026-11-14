@@ -47,9 +47,15 @@ function NasaCard({ card, job, onPlay, onImport }) {
   );
 }
 
-function LibraryCard({ track, onPlay, current }) {
+function LibraryCard({ track, onPlay, onRemove, current }) {
+  const imported = track.id.startsWith("svs");
   return (
     <li className={`card ${current ? "is-current" : ""}`}>
+      {imported && onRemove && (
+        <button type="button" className="card-remove" onClick={() => onRemove(track)} aria-label={`Remove ${track.title} from my library`} title="Remove from my library">
+          <svg viewBox="0 0 24 24" aria-hidden><path d="m6 6 12 12M18 6 6 18" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" /></svg>
+        </button>
+      )}
       <button type="button" className="card-button" onClick={() => onPlay(track)} aria-label={`Play ${track.title}`}>
         <span className="card-thumb">
           {track.cover ? <img src={track.cover} alt="" loading="lazy" /> : <span className="card-thumb-empty" />}
@@ -57,7 +63,7 @@ function LibraryCard({ track, onPlay, current }) {
           <span className="card-play" aria-hidden><svg viewBox="0 0 24 24"><path d="M8 5.2v13.6L19 12z" fill="currentColor" /></svg></span>
         </span>
         <span className="card-title">{track.title}</span>
-        <span className="card-meta">{current ? "Now playing" : "Ready to play"}</span>
+        <span className="card-meta">{current ? "Now playing" : imported ? "Imported from NASA" : "Ready to play"}</span>
       </button>
     </li>
   );
@@ -72,7 +78,8 @@ function Grid({ items, renderItem, skeletons = 0 }) {
   );
 }
 
-export default function Browser({ query, tracks, selectedTrack, jobs, onPlay, onImport, onClose }) {
+// view: "browse" (library + recommendations) or "library" (just my library).
+export default function Browser({ query, view = "browse", tracks, selectedTrack, jobs, onPlay, onImport, onRemove, onClose, onBrowseAll }) {
   const [recommended, setRecommended] = useState(null);
   const [results, setResults] = useState(null);
   const [searching, setSearching] = useState(false);
@@ -114,7 +121,7 @@ export default function Browser({ query, tracks, selectedTrack, jobs, onPlay, on
   return (
     <section className="browser" aria-label="Browse visualizations">
       <header className="browser-head">
-        <h2>{showResults ? <>Results for <em>“{trimmed}”</em></> : "Browse"}</h2>
+        <h2>{showResults ? <>Results for <em>“{trimmed}”</em></> : view === "library" ? "My library" : "Browse"}</h2>
         <button type="button" className="icon-button small" onClick={onClose} aria-label="Close browser">
           <svg viewBox="0 0 24 24" aria-hidden><path d="m6 6 12 12M18 6 6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
         </button>
@@ -125,9 +132,18 @@ export default function Browser({ query, tracks, selectedTrack, jobs, onPlay, on
         results && results.length === 0 && !searching
           ? <p className="browser-empty">No videos found. Try “ocean”, “sea ice”, or “wildfire smoke”.</p>
           : <Grid items={results ?? []} renderItem={nasaCard} skeletons={searching && !results ? 6 : 0} />
+      ) : view === "library" ? (
+        <>
+          <p className="browser-lead">{tracks.length} track{tracks.length === 1 ? "" : "s"} ready to play. Imported videos live on this computer.</p>
+          <Grid items={tracks} renderItem={(track) => <LibraryCard key={track.id} track={track} current={selectedTrack?.id === track.id} onPlay={onPlay} onRemove={onRemove} />} />
+          <button type="button" className="ghost browser-more" onClick={onBrowseAll}>
+            <svg viewBox="0 0 24 24" aria-hidden><path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" /></svg>
+            Add more from NASA
+          </button>
+        </>
       ) : (
         <>
-          <h3 className="browser-section">Your library</h3>
+          <h3 className="browser-section">My library</h3>
           <Grid items={tracks} renderItem={(track) => <LibraryCard key={track.id} track={track} current={selectedTrack?.id === track.id} onPlay={onPlay} />} />
           <h3 className="browser-section">Recommended from NASA</h3>
           <Grid items={recommended ?? []} renderItem={nasaCard} skeletons={recommended ? 0 : 6} />

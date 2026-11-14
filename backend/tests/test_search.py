@@ -85,6 +85,15 @@ class SearchRouteTests(unittest.TestCase):
         ]))
         self.assertEqual([t["id"] for t in self.client.get("/api/tracks").json()], ["ecco2_sst_flow", "svs1"])
 
+    def test_only_imported_tracks_can_be_removed(self):
+        data = Path(self.temp.name)
+        (data / "svs1.mp4").write_bytes(b"")
+        (data / "library.json").write_text(json.dumps([{"id": "svs1", "nasa_id": 1, "title": "Here", "video": "/media/svs1.mp4", "duration": 1}]))
+        self.assertEqual(self.client.delete("/api/tracks/ecco2_sst_flow").status_code, 404)
+        self.assertEqual(self.client.delete("/api/tracks/svs1").status_code, 204)
+        self.assertFalse((data / "svs1.mp4").exists())
+        self.assertEqual([t["id"] for t in self.client.get("/api/tracks").json()], ["ecco2_sst_flow"])
+
 
 if __name__ == "__main__":
     unittest.main()

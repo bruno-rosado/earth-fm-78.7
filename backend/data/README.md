@@ -43,6 +43,7 @@ The player reads one column at a time (the longitude facing the viewer). See
 | --- | --- | --- |
 | GET | `/api/tracks` | List of tracks |
 | GET | `/api/tracks/{track_id}` | One track, or 404 if unknown |
+| DELETE | `/api/tracks/{track_id}` | Remove an imported track and its files; 404 for catalog tracks |
 | GET | `/api/tracks/{track_id}/features` | Feature array, or 404 if the track or its feature file is missing |
 | GET | `/api/tracks/{track_id}/music-config` | Saved validated music settings; 404 if absent, 409 if stale |
 | POST | `/api/tracks/{track_id}/music-config` | Generate music settings with Gemini and save the validated result |

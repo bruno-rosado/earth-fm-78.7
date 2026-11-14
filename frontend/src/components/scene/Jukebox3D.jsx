@@ -16,6 +16,8 @@ const Jukebox3D = ({ tracks, selectedTrack, onSelect, hidden = false }) => {
     useFrame((state, delta) => {
         const group = groupRef.current;
         group.position.y = THREE.MathUtils.lerp(group.position.y, hidden ? -5 : -1.9, 1 - Math.exp(-delta * 3));
+        // Sit under the globe (right of center, beside the hero text) on wide screens.
+        group.position.x = THREE.MathUtils.lerp(group.position.x, state.size.width < 760 ? 0 : 0.9, 1 - Math.exp(-delta * 3));
         group.visible = group.position.y > -4.8;
     });
 

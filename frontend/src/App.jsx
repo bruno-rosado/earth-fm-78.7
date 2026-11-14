@@ -7,7 +7,7 @@ import ImportToasts from "./components/ui/ImportToasts";
 import LoadingScreen from "./components/ui/LoadingScreen";
 import Readout from "./components/ui/Readout";
 import SearchBar from "./components/ui/SearchBar";
-import { getTracks } from "./services/api";
+import { getTracks, removeTrack } from "./services/api";
 import useImports from "./services/useImports";
 import useTrackPlayer from "./services/tone/useTrackPlayer";
 import "./styles/components/ui.css";
@@ -17,6 +17,7 @@ export default function App() {
   const [selectedTrack, setSelectedTrack] = useState(null); // null = nothing selected (plain Earth)
   const [autoPlay, setAutoPlay] = useState(false);
   const [browserOpen, setBrowserOpen] = useState(false);
+  const [browserView, setBrowserView] = useState("browse"); // "browse" or "library"
   const [query, setQuery] = useState("");
   const videoRef = useRef(null);
   const player = useTrackPlayer(selectedTrack, videoRef, { autoPlay });
@@ -59,8 +60,27 @@ export default function App() {
     return () => window.removeEventListener("keydown", onKey);
   }, [browserOpen, close]);
 
-  const openBrowser = useCallback(() => setBrowserOpen(true), []);
+  const openBrowser = useCallback(() => { setBrowserView("browse"); setBrowserOpen(true); }, []);
+  const openLibrary = useCallback(() => { setBrowserView("library"); setBrowserOpen(true); }, []);
   const closeBrowser = useCallback(() => setBrowserOpen(false), []);
+
+  // The logo takes you home: no track open, panel closed, search cleared.
+  const goHome = useCallback((event) => {
+    event.preventDefault();
+    setSelectedTrack(null);
+    setBrowserOpen(false);
+    setQuery("");
+  }, []);
+
+  const remove = useCallback(async (track) => {
+    try {
+      await removeTrack(track.id);
+      if (selectedTrack?.id === track.id) setSelectedTrack(null);
+      refreshTracks();
+    } catch (err) {
+      console.error(err);
+    }
+  }, [selectedTrack, refreshTracks]);
 
   return (
     <>
@@ -68,11 +88,18 @@ export default function App() {
       <Scene tracks={tracks} selectedTrack={selectedTrack} onSelect={select} videoRef={videoRef} />
 
       <header className="topbar">
-        <div className="brand">
+        <a className="brand" href="/" onClick={goHome} aria-label="Earth Frequencies home">
           <span className="brand-mark" aria-hidden />
           <span className="brand-name">Earth <strong>Frequencies</strong></span>
-        </div>
+        </a>
         <SearchBar value={query} onChange={setQuery} open={browserOpen} onOpen={openBrowser} onClose={closeBrowser} />
+        <nav className="topbar-actions" aria-label="Library">
+          <button type="button" className={`chip ${browserOpen && browserView === "library" ? "is-active" : ""}`} onClick={browserOpen && browserView === "library" ? closeBrowser : openLibrary}>
+            <svg viewBox="0 0 24 24" aria-hidden><path d="M4 6h16M4 12h16M4 18h10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
+            My library
+            {tracks.length > 0 && <span className="chip-count">{tracks.length}</span>}
+          </button>
+        </nav>
         <ImportToasts jobs={jobs} hidden={browserOpen} onDismiss={dismiss} />
       </header>
 
@@ -87,8 +114,8 @@ export default function App() {
         <>
           <div className="browser-backdrop" onClick={closeBrowser} aria-hidden />
           <Browser
-            query={query} tracks={tracks} selectedTrack={selectedTrack} jobs={jobs}
-            onPlay={select} onImport={importVideo} onClose={closeBrowser}
+            query={query} view={browserView} tracks={tracks} selectedTrack={selectedTrack} jobs={jobs}
+            onPlay={select} onImport={importVideo} onRemove={remove} onClose={closeBrowser} onBrowseAll={openBrowser}
           />
         </>
       )}

@@ -14,6 +14,9 @@ const trackUrl = (id) => `/api/tracks/${encodeURIComponent(id)}`;
 export const getHello = () => requestJson("/api/hello");
 export const getTracks = () => requestJson("/api/tracks");
 export const getTrack = (id, options) => requestJson(trackUrl(id), options);
+export const removeTrack = (id) => fetch(trackUrl(id), { method: "DELETE" }).then((response) => {
+  if (!response.ok) throw new Error("Could not remove that track.");
+});
 export const getFeatures = (id, options) => requestJson(`${trackUrl(id)}/features`, options);
 export const getMusicConfig = (id, options) => requestJson(`${trackUrl(id)}/music-config`, options);
 export const generateMusicConfig = (id, prompt, options = {}) => requestJson(`${trackUrl(id)}/music-config`, {
