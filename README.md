@@ -1,6 +1,6 @@
 # earth-fm-78.7
 
-Earth Frequencies: a jukebox where each "album" is a NASA Earth visualization turned into music, playing over a spinning 3D Earth.
+Earth Frequencies: a jukebox where each track is a NASA Earth visualization turned into music, playing over a spinning 3D Earth.
 
 ## Run it (two terminals)
 
@@ -18,7 +18,7 @@ cd frontend
 npm install
 npm run dev
 ```
-Open http://localhost:5173. You should see "Hello from earth-fm backend".
+Open http://localhost:5173 for the frontend and http://localhost:8000/docs to try the backend API.
 
 ## Tests
 
@@ -45,5 +45,6 @@ Place videos and cover images in `backend/media/`. For example,
 http://localhost:8000/media/clouds.mp4. Use `/media/clouds.mp4` as the video URL
 in track metadata; the frontend development server forwards `/media` to the backend.
 
-The demo track's video and cover image are placeholders and are not bundled.
-After adding real files, open their `/media/<filename>` URLs to verify they load.
+The real `ecco2_sst_flow` track currently references NASA-hosted video and cover
+URLs. Local media downloads are deferred. After adding local files, update the
+track URLs and open their `/media/<filename>` URLs to verify they load.
