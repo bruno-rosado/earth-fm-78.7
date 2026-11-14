@@ -7,17 +7,23 @@ media. LLM integration and MongoDB are planned architecture, not implemented cod
 ## Track data and feature contract
 
 - Use **tracks** as the product term.
-- Added one sample track in `backend/data/tracks.json` with `id`, `title`,
-  `description`, `cover`, `video`, and `duration` in seconds.
+- Initially added one demo track, now replaced by the real `ecco2_sst_flow` track
+  in `backend/data/tracks.json`, with `id`, `title`, `cover`, `video`, and `duration`
+  in seconds. Description is omitted by team decision.
 - Removed `key`, `tempo`, and `instrument` from track metadata. Future generated
   music settings belong in a separate music configuration.
-- Added one sample in `backend/data/features/demo.json`, matching track ID `demo`.
-- Agreed feature names: `brightness`, `motion`, `color_distribution`, and `contrast`.
-- Samples use `t` in seconds, with a target interval of 0.5 seconds for real data.
+- Replaced the demo features with 34 real samples in
+  `backend/data/features/ecco2_sst_flow.json`, matching the real track ID.
+- Agreed feature names: `brightness`, `motion`, `color`, and `contrast`.
+- Samples use `t` in seconds, with an agreed interval of 2 seconds for real data.
   Brightness, motion, and contrast are in the range 0–1. The first motion value is 0.
-- The current proposed color distribution format is an object containing `red`,
-  `green`, and `blue` proportions, each 0–1 and together totaling 1. Devs 2 and 4
-  still need to confirm that representation.
+- The agreed `color` format contains seven proportions: `red`, `yellow`, `green`,
+  `cyan`, `blue`, `magenta`, and `neutral`, each 0–1 and together totaling 1.
+- Removed the separate `backend/data/tracks/` directory. The extractor now adds
+  or updates entries in `tracks.json` and writes features as `{track_id}.json`.
+- The extractor measures video duration from frame count and frame rate.
+- Verified the existing real track's 66.7-second duration from the NASA MP4 movie
+  header using small byte-range requests; no local media was downloaded.
 - Documented the contract in `backend/data/README.md`.
 
 ## API endpoints and route organization
@@ -57,8 +63,8 @@ the terminal's working directory. The app supports both root-level
 
 ## Python environment and editor setup
 
-- Created `backend/.venv` and installed `backend/requirements.txt` (`fastapi` and
-  `uvicorn`, plus their dependencies).
+- Created `backend/.venv` and installed `backend/requirements.txt` (`fastapi`,
+  `uvicorn`, `numpy`, and `opencv-python-headless`, plus their dependencies).
 - Added `.vscode/settings.json` with the backend virtual environment as the default
   interpreter and `backend/` as an additional Python analysis path.
 - Verified dependency consistency and application imports from both supported
@@ -85,6 +91,11 @@ Development checks verified:
 - Missing media and directory traversal requests return 404.
 - Data and media paths work from either startup directory.
 - Frontend proxy configuration passes JavaScript syntax checking.
+- The real track list, details, and 34-feature array return 200 with the agreed
+  metadata and feature shapes.
+- Extraction of a generated test video produces two-second samples, seven color
+  categories, and a measured duration. Registry updates preserve other tracks and
+  replace an existing ID without duplication.
 
 These checks used temporary scripts and media transport fixtures; a permanent
 automated test suite was not added, and real NASA video playback has not yet been
@@ -95,15 +106,14 @@ verified.
 - `API/track-endpoints`: nine files committed separately; merged in PR #2.
 - `API/media-serving`: five files committed separately; merged in PR #3.
 - `main` contains both merged changes.
+- Real-data integration is on `API/real-track-data`, branched from the updated
+  `main`; that work is not yet merged.
 
 ## Remaining handoff and planned work
 
-- Dev 2 supplies the real NASA video, cover image, track metadata, source and
-  attribution information, and `features/{track_id}.json`.
-- The current demo contains only one feature sample. Its 60-second duration and
-  media URLs are placeholders; the referenced video and cover are not bundled.
-- More varied demo samples would help Dev 4 test changing musical behavior before
-  real extraction is ready.
+- Dev 2's real metadata and features have been received. The current track uses
+  external NASA video and cover URLs; adding local media is deferred.
+- Keep the seven color categories and two-second samples when integrating playback.
 - Devs 3 and 4 connect the track picker, globe, music engine, and playback controls.
   Verify real media and features with them after Dev 2's data is integrated.
 - For real-data integration, start from the latest `main` on a new branch, or
