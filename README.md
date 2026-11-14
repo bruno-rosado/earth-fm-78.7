@@ -29,9 +29,21 @@ backend/.venv/bin/python -m unittest discover -s tests -v
 
 ## What's here
 ```
-backend/main.py        the whole backend (one file for now)
+backend/main.py        backend app setup
+backend/routes/        API endpoints
+backend/media/         videos and cover images served at /media
 frontend/src/App.jsx   the whole frontend (one file for now)
 docs/                  HOW_IT_WORKS.md + one step-by-step guide per dev
 ```
 Start with `docs/HOW_IT_WORKS.md`, then open your `docs/DEVx.md`.
 Add new files only when you need them. Each guide says which ones to create.
+
+## Media files
+
+Place videos and cover images in `backend/media/`. For example,
+`backend/media/clouds.mp4` is available at
+http://localhost:8000/media/clouds.mp4. Use `/media/clouds.mp4` as the video URL
+in track metadata; the frontend development server forwards `/media` to the backend.
+
+The demo track's video and cover image are placeholders and are not bundled.
+After adding real files, open their `/media/<filename>` URLs to verify they load.
