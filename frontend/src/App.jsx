@@ -1,12 +1,21 @@
 import { useEffect, useState } from "react";
+import Scene from "./components/scene/Scene";
+import { getTracks } from "./services/api";
 
 export default function App() {
-  const [msg, setMsg] = useState("loading...");
+  const [tracks, setTracks] = useState([]);
+  const [selectedTrack, setSelectedTrack] = useState(null); // null = nothing selected (plain Earth)
+
   useEffect(() => {
-    fetch("/api/hello")
-      .then((r) => r.json())
-      .then((d) => setMsg(d.message))
-      .catch((e) => setMsg(`Error: ${e.message}`));
-  }, []);
-  return <h1>{msg}</h1>;
+    async function load() {
+      try {
+        setTracks(await getTracks());
+      } catch (err) {
+        console.error("Could not load tracks:", err);
+      }
+    }
+    load();
+  }, []); // [] = run once when the page loads
+
+  return <Scene tracks={tracks} selectedTrack={selectedTrack} onSelect={setSelectedTrack} />;
 }

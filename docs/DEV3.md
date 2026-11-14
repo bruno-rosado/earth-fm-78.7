@@ -27,3 +27,20 @@ React Three Fiber intro: https://docs.pmnd.rs/react-three-fiber/getting-started/
 1. **The `App.jsx` contract with Dev 4:** `selectedTrack` state plus a `videoRef` that you create and pass to `<Player>`.
 2. **Who calls `video.play()`.** The plan is Dev 4's player, and only that.
 3. **The video URL format** from Dev 1 (`/media/...`), plus CORS and the proxy for `/media`.
+
+---
+## Decisions (screen layout)
+- **Full page.** One 3D `<Canvas>` fills the screen: the background visual, the globe and the jukebox. The player (Dev 4) is HTML on top.
+- **Jukebox:** 3D cards inside the Canvas on a gentle arc below the globe (they curve back toward the edges). Scroll with the mouse wheel or Left/Right arrows, click or Enter to select. A hidden HTML button list is there for screen readers.
+- **Nothing selected:** a plain Earth texture on the globe, with the default background.
+- **Track selected:** fade to that track's video on the globe and to its background.
+- **Background is tied to the track** via `"background": "aurora"` in `track.json` (ask Dev 1). A lookup maps the name to a component and falls back to aurora.
+
+## Folder plan
+```
+components/
+  scene/  Scene.jsx (Canvas, lights, picks background), Globe.jsx (sphere + video),
+          Jukebox3D.jsx + AlbumCard3D.jsx (3D cards),
+          backgrounds/ (Aurora.jsx, auroraShader.js, index.js lookup)
+services/  api.js, fakeData.js
+```

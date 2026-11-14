@@ -1,0 +1,23 @@
+/* Styles for components/scene/. Imported in Scene.jsx. */
+
+/* Canvas fills its parent, so this wrapper makes the 3D view cover the whole window. */
+.scene-container {
+  position: fixed;
+  inset: 0; /* top/right/bottom/left = 0 */
+  width: 100vw;
+  height: 100vh;
+}
+
+/* Hidden on screen but still read by screen readers. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+  list-style: none;
+}
