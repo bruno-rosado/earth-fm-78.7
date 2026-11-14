@@ -25,6 +25,20 @@ def nasa_url(url):
     return parsed._replace(scheme="https").geturl()
 
 
+def video_duration(video_path):
+    capture = cv2.VideoCapture(str(video_path))
+    try:
+        if not capture.isOpened():
+            raise ValueError(f"Could not open video: {video_path}")
+        fps = capture.get(cv2.CAP_PROP_FPS)
+        frames = capture.get(cv2.CAP_PROP_FRAME_COUNT)
+        if not all(math.isfinite(value) and value > 0 for value in (fps, frames)):
+            raise ValueError(f"Could not determine video duration: {video_path}")
+        return frames / fps
+    finally:
+        capture.release()
+
+
 def extract_track(nasa_id, video_path, track_id):
     try:
         with urlopen(f"https://svs.gsfc.nasa.gov/api/{nasa_id}", timeout=30) as response:
@@ -57,8 +71,9 @@ def extract_track(nasa_id, video_path, track_id):
     return {
         "id": track_id,
         "title": title,
-        "cover_image_url": nasa_url(image.get("url")),
-        "video_url": video_urls.pop(),
+        "cover": nasa_url(image.get("url")),
+        "video": video_urls.pop(),
+        "duration": video_duration(video_path),
     }
 
 
@@ -129,7 +144,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("video", type=Path, help="Path to the input video")
     parser.add_argument(
-        "output", type=Path, help="Path to the {id}_features.json file in a features directory"
+        "output", type=Path, help="Path to the {id}.json file in a features directory"
     )
     parser.add_argument("--nasa-id", type=int, required=True, help="NASA SVS visualization ID")
     args = parser.parse_args()
@@ -137,21 +152,34 @@ def main():
     try:
         if args.nasa_id <= 0:
             raise ValueError("NASA visualization ID must be positive")
-        suffix = "_features.json"
         if (
             args.output.parent.name != "features"
-            or not args.output.name.endswith(suffix)
-            or len(args.output.name) == len(suffix)
+            or args.output.suffix != ".json"
+            or not args.output.stem
         ):
-            raise ValueError("Feature output must be {id}_features.json in a features directory")
-        track_id = args.output.name[:-len(suffix)]
-        track_output = args.output.parent.parent / "tracks" / f"{track_id}_track.json"
+            raise ValueError("Feature output must be {id}.json in a features directory")
+        track_id = args.output.stem
+        track_output = args.output.parent.parent / "tracks.json"
+        tracks = (
+            json.loads(track_output.read_text(encoding="utf-8"))
+            if track_output.exists()
+            else []
+        )
+        if not isinstance(tracks, list) or any(
+            not isinstance(track, dict) or "id" not in track for track in tracks
+        ):
+            raise ValueError("tracks.json must contain a list of tracks with IDs")
         track = extract_track(args.nasa_id, args.video, track_id)
         features = extract_features(args.video)
+        for index, existing in enumerate(tracks):
+            if existing["id"] == track_id:
+                tracks[index] = track
+                break
+        else:
+            tracks.append(track)
         args.output.parent.mkdir(parents=True, exist_ok=True)
-        track_output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(json.dumps(features, indent=2) + "\n", encoding="utf-8")
-        track_output.write_text(json.dumps(track, indent=2) + "\n", encoding="utf-8")
+        track_output.write_text(json.dumps(tracks, indent=2) + "\n", encoding="utf-8")
     except (ValueError, OSError, cv2.error) as error:
         parser.exit(1, f"Error: {error}\n")
     print(f"Wrote {len(features)} samples to {args.output}")
