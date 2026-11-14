@@ -22,7 +22,8 @@ Open http://localhost:5173. You should see "Hello from earth-fm backend".
 
 ## What's here
 ```
-backend/main.py        the whole backend (one file for now)
+backend/main.py        backend app setup
+backend/routes/        API endpoints
 frontend/src/App.jsx   the whole frontend (one file for now)
 docs/                  HOW_IT_WORKS.md + one step-by-step guide per dev
 ```
