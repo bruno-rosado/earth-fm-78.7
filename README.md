@@ -20,6 +20,13 @@ npm run dev
 ```
 Open http://localhost:5173. You should see "Hello from earth-fm backend".
 
+## Tests
+
+Put tests in `tests/`. Run the Python tests from the repository root:
+```
+backend/.venv/bin/python -m unittest discover -s tests -v
+```
+
 ## What's here
 ```
 backend/main.py        backend app setup
