@@ -6,3 +6,20 @@
   z-index: 10; /* above the canvas */
   color: white;
 }
+
+.music-player {
+  width: min(360px, calc(100vw - 64px));
+  padding: 16px;
+  border: 1px solid #ffffff30;
+  border-radius: 14px;
+  background: #071321e8;
+  font-family: system-ui, sans-serif;
+}
+.music-player h2 { margin: 0 0 12px; font-size: 1.1rem; }
+.music-player label { display: block; margin-bottom: 6px; }
+.music-player input { box-sizing: border-box; width: 100%; padding: 8px; border-radius: 6px; }
+.music-player-controls { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.music-player button { padding: 8px 12px; cursor: pointer; }
+.music-player button:disabled { cursor: default; }
+.music-player p { font-size: .85rem; }
+.music-player [role="alert"] { color: #ffb7b7; }

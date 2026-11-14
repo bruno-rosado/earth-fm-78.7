@@ -60,7 +60,7 @@ const AlbumCard3D = ({ track, index, activeIndex, isSelected, onSelect, radius, 
                 </mesh>
             )}
             <mesh geometry={geometry}>
-                <meshBasicMaterial color={track.color} toneMapped={false} />
+                <meshBasicMaterial color={track.color ?? "rgb(29, 125, 224)"} toneMapped={false} />
             </mesh>
             <Text position={[0, 0, 0.01]} fontSize={0.13} maxWidth={SIZE - 0.2} textAlign="center" color="white" anchorX="center" anchorY="middle">
                 {track.title}

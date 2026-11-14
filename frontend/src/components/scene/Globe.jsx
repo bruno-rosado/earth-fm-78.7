@@ -3,14 +3,15 @@ import { useEffect, useRef, useState } from 'react';
 import { useFrame, useLoader } from '@react-three/fiber';
 import * as THREE from 'three';
 
-const Globe = ({ videoUrl }) => {
+const Globe = ({ videoUrl, playbackVideoRef }) => {
     const earthTexture = useLoader(THREE.TextureLoader, '/textures/earth-3.png');
     earthTexture.colorSpace = THREE.SRGBColorSpace; // correct colors for photos
 
     const groupRef = useRef();
     const videoMatRef = useRef();
-    // Dev 4 will use this ref later to call play()/pause() on the video.
-    const videoRef = useRef(null);
+    // MusicPlayer calls play()/pause() through the shared ref.
+    const localVideoRef = useRef(null);
+    const videoRef = playbackVideoRef ?? localVideoRef;
     const [videoTexture, setVideoTexture] = useState(null);
 
     // Whenever videoUrl changes: make a <video> element and wrap it in a VideoTexture.
@@ -20,13 +21,13 @@ const Globe = ({ videoUrl }) => {
             return;
         }
         const video = document.createElement('video');
-        video.src = videoUrl;
         video.crossOrigin = 'anonymous';
+        video.src = videoUrl;
         video.muted = true;
-        video.loop = true;
+        video.loop = false;
+        video.preload = 'auto';
         video.playsInline = true;
-        // Autoplay for now. Dev 4 will control play/pause via videoRef later.
-        video.play().catch(() => {}); // ignore blocked autoplay
+        // MusicPlayer owns starting and stopping the shared video element.
         videoRef.current = video;
 
         const texture = new THREE.VideoTexture(video);
@@ -47,7 +48,7 @@ const Globe = ({ videoUrl }) => {
             texture.dispose();
             videoRef.current = null;
         };
-    }, [videoUrl]);
+    }, [videoUrl, videoRef]);
 
     useFrame((state, delta) => {
         // Slow rotation.

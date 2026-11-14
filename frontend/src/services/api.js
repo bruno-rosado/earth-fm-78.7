@@ -1,23 +1,24 @@
-import { fakeTracks } from "./fakeData";
-
-// All backend calls live here. Components import these functions instead of calling fetch() directly,
-// so if a URL changes we fix it in one place. Dev 4 can import from here too.
-
-// Shared helper: GET a URL and return the JSON. Throws if the server returns an error status
-// (fetch() alone does NOT throw on 404/500, so we check res.ok ourselves).
-async function getJson(url) {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`${url} failed: HTTP ${res.status}`);
-  return res.json();
+// Keep backend URLs and error handling in one place.
+async function requestJson(url, options = {}) {
+  const response = await fetch(url, options);
+  const body = await response.json();
+  if (!response.ok) {
+    const error = new Error(typeof body.detail === "string" ? body.detail : `Request failed: HTTP ${response.status}`);
+    error.status = response.status;
+    throw error;
+  }
+  return body;
 }
 
-export const getHello = () => getJson("/api/hello");
-
-// Returns fake tracks for now (async, like a real fetch would be).
-export const getTracks = async () => fakeTracks;
-// When Dev 1's endpoint exists, replace the line above with:
-// export const getTracks = () => getJson("/api/tracks");
-
-// TODO (when Dev 1's endpoints exist):
-// export const getTrack = (id) => getJson(`/api/tracks/${id}`);
-// export const getFeatures = (id) => getJson(`/api/tracks/${id}/features`);
+const trackUrl = (id) => `/api/tracks/${encodeURIComponent(id)}`;
+export const getHello = () => requestJson("/api/hello");
+export const getTracks = () => requestJson("/api/tracks");
+export const getTrack = (id, options) => requestJson(trackUrl(id), options);
+export const getFeatures = (id, options) => requestJson(`${trackUrl(id)}/features`, options);
+export const getMusicConfig = (id, options) => requestJson(`${trackUrl(id)}/music-config`, options);
+export const generateMusicConfig = (id, prompt, options = {}) => requestJson(`${trackUrl(id)}/music-config`, {
+  ...options,
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ prompt }),
+});

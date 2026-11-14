@@ -7,7 +7,7 @@ import Jukebox3D from './Jukebox3D';
 import '../../styles/components/scene.css';
 
 // Props: tracks (array), selectedTrack (object or null), onSelect(track).
-const Scene = ({ tracks, selectedTrack, onSelect }) => {
+const Scene = ({ tracks, selectedTrack, onSelect, videoRef }) => {
     // Pick the background for the selected track (default: aurora).
     const Background = getBackground(selectedTrack?.background);
 
@@ -26,7 +26,7 @@ const Scene = ({ tracks, selectedTrack, onSelect }) => {
                 {/* key = track id: when it changes React re-creates the background, so it fades in again. */}
                 <Background key={selectedTrack?.id ?? 'none'} />
 
-                <Globe videoUrl={selectedTrack?.videoUrl} />
+                <Globe videoUrl={selectedTrack?.video} playbackVideoRef={videoRef} />
                 <Jukebox3D tracks={tracks} selectedTrack={selectedTrack} onSelect={onSelect} />
             </Canvas>
 
