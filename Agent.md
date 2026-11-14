@@ -130,12 +130,11 @@ still need a manual browser check.
 
 ## Remaining handoff and planned work
 
-- Dev 2's real metadata and features have been received. The current track uses
-  external NASA video and cover URLs; adding local media is deferred.
-- Keep the seven color categories and two-second samples when integrating playback.
-- The track picker, globe, and config-driven music player are connected. Verify
-  real video playback and audible output together in a browser; local media files
-  and precise seek/pause synchronization remain follow-up work.
+- The track's video and cover are now served locally from `backend/media/`.
+- Features are now sampled every second and include a latitude × longitude grid
+  (presence, temperature, current speed, flow direction); the music config is
+  schema version 2. See `backend/data/README.md` and `backend/MUSIC_CONFIG.md`.
+- Playback, pause, seek, and audio/video sync were verified in a browser.
 - For real-data integration, start from the latest `main` on a new branch, or
   review Dev 2's branch if it already contains the required files.
 - Gemini now generates the separate music config used with the original timed

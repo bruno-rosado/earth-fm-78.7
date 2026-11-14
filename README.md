@@ -20,16 +20,17 @@ npm run dev
 ```
 Open http://localhost:5173 for the frontend and http://localhost:8000/docs to try the backend API.
 
-## Generate track music with Gemini
+## How it sounds
 
-Add `GEMINI_API_KEY` to `backend/.env` (see `backend/.env.example`), then restart
-the backend after installing requirements. Select a track in the app, click
-**Generate music**, then **Play**. Generated settings are validated, saved per
-track, and reused for playback. The optional style field guides the musical mood.
+Like NASA's Hearing Hubble, a scan line reads the map as the globe turns: latitude
+sets pitch, sea temperature sets tone color and chords, current speed sets rhythm
+and loudness, and current direction sets stereo pan. Select a track and press play
+(or Space).
 
-See [backend/MUSIC_CONFIG.md](backend/MUSIC_CONFIG.md) for the config format,
-model setting, endpoints, and tests. Gemini receives the track metadata and full
-feature JSON; the frontend uses the returned settings to drive Tone.js.
+Optionally add `GEMINI_API_KEY` to `backend/.env` (see `backend/.env.example`) and
+use **Style → Generate** to have Gemini choose the key, mode, tempo, and instruments.
+See [backend/MUSIC_CONFIG.md](backend/MUSIC_CONFIG.md) for the mapping, config
+format, endpoints, and tests.
 
 ## Tests
 
@@ -37,13 +38,14 @@ Backend tests live in `backend/tests/`. Run them from the repository root:
 ```
 backend/.venv/bin/python -m unittest discover -s backend/tests -v
 ```
+Frontend tests: `cd frontend && npm test`.
 
 ## What's here
 ```
 backend/main.py        backend app setup
 backend/routes/        API endpoints
 backend/media/         videos and cover images served at /media
-frontend/src/App.jsx   the whole frontend (one file for now)
+frontend/src/          React app: 3D scene and Tone.js music engine
 docs/                  HOW_IT_WORKS.md + one step-by-step guide per dev
 ```
 Start with `docs/HOW_IT_WORKS.md`, then open your `docs/DEVx.md`.
@@ -55,7 +57,5 @@ Place videos and cover images in `backend/media/`. For example,
 `backend/media/clouds.mp4` is available at
 http://localhost:8000/media/clouds.mp4. Use `/media/clouds.mp4` as the video URL
 in track metadata; the frontend development server forwards `/media` to the backend.
-
-The real `ecco2_sst_flow` track currently references NASA-hosted video and cover
-URLs. Local media downloads are deferred. After adding local files, update the
-track URLs and open their `/media/<filename>` URLs to verify they load.
+Use local copies: the browser needs same-origin video to texture the globe and
+range requests to seek.

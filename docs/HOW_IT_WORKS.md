@@ -60,19 +60,17 @@ the per-frame features used during playback.
    `title`, `cover`, `video`, and `duration` in seconds. It contains
    metadata only; music settings are kept separate.
 2. **`backend/data/features/{track_id}.json`** contains a time-ordered array of
-   samples. Each sample has `t` in seconds and the agreed features: `brightness`,
-   `motion`, `color`, and `contrast`. The agreed interval is 2 seconds.
-   Brightness, motion, and contrast are 0–1. `color` contains seven proportions:
-   `red`, `yellow`, `green`, `cyan`, `blue`, `magenta`, and `neutral`, totaling 1.
+   samples, one per second. Each sample has `t`, whole-frame `brightness`,
+   `motion`, `color`, and `contrast`, plus a latitude × longitude `grid` whose
+   cells hold presence, temperature, current speed, and flow direction.
 3. **Media files** live in `backend/media/` and are served at `/media/<filename>`.
 4. **`backend/data/music-config/{track_id}.json`** stores a validated config and
    source-data hash. The config contains tempo, a supported instrument, scale
-   pitches, musical timing, note density, and velocity ranges. The GET endpoint
+   key, mode, tempo, instruments, timing, density, velocity, pad level, and reverb. The GET endpoint
    returns only the public config; MongoDB persistence remains planned.
 
 Track IDs and feature filenames must match. The real `ecco2_sst_flow` track has
-34 samples at two-second intervals. It currently references external NASA media;
-local video and cover downloads are deferred. See
+67 samples at one-second intervals, and its video and cover are served locally. See
 [`backend/data/README.md`](../backend/data/README.md) for the current data contract
 and [`Agent.md`](../Agent.md) for the completed Dev 1 work.
 
@@ -81,7 +79,7 @@ and [`Agent.md`](../Agent.md) for the completed Dev 1 work.
 1. The backend reads a track and its timed features and creates a compact feature
    summary, such as average values and how they change over time.
 2. On an explicit Generate request, the backend calls Gemini with that summary,
-   the complete track and feature JSON, and optional musical preferences.
+   the track metadata, and optional musical preferences.
 3. The LLM returns a proposed music configuration, separate from track metadata.
 4. The backend validates supported instruments, pitch names, timing, tempo,
    ranges, and track ID, then atomically saves the accepted result to a local JSON
@@ -97,23 +95,18 @@ for setup, the schema, and endpoint examples. MongoDB persistence is future work
 
 ## What happens when a user plays a track
 
-The frontend now loads real tracks, generates music configs, and plays mapped notes.
-
 1. The page calls `GET /api/tracks` to get the track list.
-2. The user selects a track. The frontend calls `GET /api/tracks/{track_id}` and
-   `GET /api/tracks/{track_id}/features`.
-3. Dev 3 loads the track's `video` URL and wraps it around the globe. Local media
-   uses `/media/...`; the current track still references NASA-hosted media.
-4. The frontend loads its saved music config. If none exists or it is stale, the
-   user clicks Generate music to create one through the backend.
-5. The user presses Play. Dev 4's player starts audio and the shared video element
-   together.
-6. During playback, the engine reads features at the current time and uses them
-   to shape pitch, rhythm, velocity, and filter brightness. The generated config
-   supplies the allowed notes, tempo, instrument, and ranges.
-7. Stop and track changes dispose playback resources and pause the shared video.
-   If the remote video cannot start, audio can continue with a visible notice.
-   Precise pause/seek synchronization and additional controls remain future work.
+2. The user selects a track. The frontend loads its features and saved style; with
+   no saved style it uses the built-in default, so playback never needs Gemini.
+3. Dev 3 loads the track's local `/media/...` video and wraps it around the globe.
+4. The user presses play. The engine precomputes every note from the features and
+   style, then starts the Tone.js transport and the video together.
+5. The globe turns so the longitude being played faces the viewer. A scan line
+   marks it, a marker on each latitude band pulses when that band plays, and the
+   atmosphere and aurora follow the music's loudness.
+6. Pause, seek, volume, and track changes keep audio and video together; the video
+   follows the audio clock. See [the music-config guide](../backend/MUSIC_CONFIG.md)
+   for the exact mapping.
 
 ## Order of work
 
@@ -126,7 +119,7 @@ The frontend now loads real tracks, generates music configs, and plays mapped no
 
 Track endpoints, media serving, and real JSON integration are merged. Gemini music
 config generation and playback integration are on `API/gemini-music-config`.
-Local media downloads and MongoDB remain separate work.
+MongoDB remains separate work.
 
 ## Who blocks whom (Day 1 first 2 hours = all together)
 
