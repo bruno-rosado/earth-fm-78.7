@@ -55,21 +55,21 @@ the per-frame features used during playback.
 ## The shared data
 
 1. **`backend/data/tracks.json`** contains a list of tracks. Each track has `id`,
-   `title`, `description`, `cover`, `video`, and `duration` in seconds. It contains
+   `title`, `cover`, `video`, and `duration` in seconds. It contains
    metadata only; music settings are kept separate.
 2. **`backend/data/features/{track_id}.json`** contains a time-ordered array of
    samples. Each sample has `t` in seconds and the agreed features: `brightness`,
-   `motion`, `color_distribution`, and `contrast`. The target interval is 0.5 seconds.
-   Brightness, motion, and contrast are 0–1. The current proposed color distribution
-   is `{ "red": 0.25, "green": 0.35, "blue": 0.4 }`, with proportions totaling 1;
-   Devs 2 and 4 should confirm this representation.
+   `motion`, `color`, and `contrast`. The agreed interval is 2 seconds.
+   Brightness, motion, and contrast are 0–1. `color` contains seven proportions:
+   `red`, `yellow`, `green`, `cyan`, `blue`, `magenta`, and `neutral`, totaling 1.
 3. **Media files** live in `backend/media/` and are served at `/media/<filename>`.
 4. **`music-config.json` (planned)** represents the LLM-generated music settings.
    It will be validated and persisted in MongoDB. Its exact schema, whether a JSON
    file is also retained, and the API for retrieving it remain to be agreed.
 
-Track IDs and feature filenames must match. The existing `demo` entry has one
-fake sample; its video and cover are not bundled. See
+Track IDs and feature filenames must match. The real `ecco2_sst_flow` track has
+34 samples at two-second intervals. It currently references external NASA media;
+local video and cover downloads are deferred. See
 [`backend/data/README.md`](../backend/data/README.md) for the current data contract
 and [`Agent.md`](../Agent.md) for the completed Dev 1 work.
 
@@ -92,13 +92,13 @@ be agreed with Dev 4 before integration.
 
 ## What happens when a user plays a track
 
-This is the target frontend flow; the current frontend is still the hello-world
-scaffold.
+This is the target frontend flow; the current frontend has a basic audio prototype.
 
 1. The page calls `GET /api/tracks` to get the track list.
 2. The user selects a track. The frontend calls `GET /api/tracks/{track_id}` and
    `GET /api/tracks/{track_id}/features`.
-3. Dev 3 loads the track's video from `/media/...` and wraps it around the globe.
+3. Dev 3 loads the track's `video` URL and wraps it around the globe. Local media
+   uses `/media/...`; the current track still references NASA-hosted media.
 4. Once the LLM flow is implemented, the frontend also loads its saved music
    configuration through the backend; that endpoint is not defined yet.
 5. The user presses Play. Dev 4's player starts audio and the shared video element
@@ -117,8 +117,9 @@ scaffold.
 | 3 | Swap in the real NASA track. Make it play end to end. |
 | 4 | Polish, plus planned LLM-generated music configuration, MongoDB persistence, and more tracks. |
 
-Dev 1's track endpoints and media serving are implemented and merged. Real data
-integration and the LLM/database flow remain separate work.
+Dev 1's track endpoints and media serving are implemented and merged. Real JSON
+data is integrated on `API/real-track-data`; local media integration and the
+LLM/database flow remain separate work.
 
 ## Who blocks whom (Day 1 first 2 hours = all together)
 
