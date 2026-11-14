@@ -25,6 +25,12 @@ Feature names are:
 | GET | `/api/tracks` | List of tracks |
 | GET | `/api/tracks/{track_id}` | One track, or 404 if unknown |
 | GET | `/api/tracks/{track_id}/features` | Feature array, or 404 if the track or its feature file is missing |
+| GET | `/api/tracks/{track_id}/music-config` | Saved validated music settings; 404 if absent, 409 if stale |
+| POST | `/api/tracks/{track_id}/music-config` | Generate music settings with Gemini and save the validated result |
+
+Music settings stay separate from track metadata. See
+[`../MUSIC_CONFIG.md`](../MUSIC_CONFIG.md) for environment setup and the Tone.js
+config contract. Generated records live in `music-config/{track_id}.json`.
 
 The current track is `ecco2_sst_flow`, with 34 real samples at 0, 2, ..., 66 seconds.
 Its duration is 66.7 seconds, verified from the NASA MP4 movie header. The last

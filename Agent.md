@@ -2,7 +2,8 @@
 
 This records the Dev 1 work completed for Earth Frequencies and the decisions
 the team should carry forward. The backend currently serves local JSON files and
-media. LLM integration and MongoDB are planned architecture, not implemented code.
+media. Gemini music-config generation and Tone.js integration are implemented on
+`API/gemini-music-config`; MongoDB remains planned.
 
 ## Track data and feature contract
 
@@ -97,28 +98,46 @@ Development checks verified:
   categories, and a measured duration. Registry updates preserve other tracks and
   replace an existing ID without duplication.
 
-These checks used temporary scripts and media transport fixtures; a permanent
-automated test suite was not added, and real NASA video playback has not yet been
-verified.
+The original checks used temporary scripts and media transport fixtures. Gemini
+integration now includes repeatable backend and frontend mapping tests. A live
+Gemini request produced a validated config and its live GET endpoint returned 200.
+Browser automation was unavailable, so actual audio and remote NASA video playback
+still need a manual browser check.
 
 ## Branches and integration
 
 - `API/track-endpoints`: nine files committed separately; merged in PR #2.
 - `API/media-serving`: five files committed separately; merged in PR #3.
 - `main` contains both merged changes.
-- Real-data integration is on `API/real-track-data`, branched from the updated
-  `main`; that work is not yet merged.
+- Real-data integration from `API/real-track-data` is merged in PR #7.
+- Gemini integration is on `API/gemini-music-config` and is not yet merged.
+
+## Gemini music-config integration
+
+- Added backend-only environment loading for `GEMINI_API_KEY` and `GEMINI_MODEL`.
+- Added an editable system prompt and a strict Pydantic output schema. Gemini
+  receives track metadata, all feature samples, a summary, and optional preferences.
+- Added GET and POST `/api/tracks/{track_id}/music-config`. Generated configs are
+  validated and saved atomically, with a source-data hash to detect stale results.
+- Connected the frontend to real tracks and added Generate, Play, and Stop controls.
+- Added a Tone.js adapter using supported synths, scale pitches, and note durations.
+  Brightness controls pitch, motion density, contrast velocity, and color the filter.
+- Shared the video element with the player so Play/Stop control video and audio.
+- Added repeatable backend and mapping tests; provider calls are mocked, including
+  an offline transport test of the installed SDK. A separate live generation with
+  the configured key succeeded and saved an 80 BPM synth config for the real track.
+  See `backend/MUSIC_CONFIG.md`.
 
 ## Remaining handoff and planned work
 
 - Dev 2's real metadata and features have been received. The current track uses
   external NASA video and cover URLs; adding local media is deferred.
 - Keep the seven color categories and two-second samples when integrating playback.
-- Devs 3 and 4 connect the track picker, globe, music engine, and playback controls.
-  Verify real media and features with them after Dev 2's data is integrated.
+- The track picker, globe, and config-driven music player are connected. Verify
+  real video playback and audible output together in a browser; local media files
+  and precise seek/pause synchronization remain follow-up work.
 - For real-data integration, start from the latest `main` on a new branch, or
   review Dev 2's branch if it already contains the required files.
-- The planned LLM flow summarizes features, calls Gemini or OpenAI, validates a
-  separate music configuration, saves it to MongoDB, and supplies it to Dev 4's
-  engine alongside the original timed features. Provider, config schema, and
-  config API endpoints remain to be decided. See `docs/HOW_IT_WORKS.md`.
+- Gemini now generates the separate music config used with the original timed
+  features. Configs currently use local JSON storage. MongoDB, additional player
+  controls, and precise pause/seek synchronization remain future work.
