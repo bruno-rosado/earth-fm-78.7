@@ -3,14 +3,14 @@ from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
 
+if __package__ == "routes":
+    from services.imports import read_tracks
+else:
+    from ..services.imports import read_tracks
+
 DATA_DIR = Path(__file__).resolve().parents[1] / "data"
 
 router = APIRouter(prefix="/tracks", tags=["tracks"])
-
-
-def read_tracks():
-    with (DATA_DIR / "tracks.json").open(encoding="utf-8") as file:
-        return json.load(file)
 
 
 @router.get("")

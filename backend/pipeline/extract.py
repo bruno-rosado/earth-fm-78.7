@@ -185,7 +185,8 @@ def frame_features(frame, previous_gray):
     }, gray
 
 
-def extract_features(video_path):
+def extract_features(video_path, progress=None):
+    """Timed features for a video. `progress(fraction)` is called as frames are read."""
     capture = cv2.VideoCapture(str(video_path))
     try:
         if not capture.isOpened():
@@ -218,6 +219,8 @@ def extract_features(video_path):
                     sample_index += 1
                     next_frame = round(sample_index * INTERVAL_SECONDS * fps)
             frame_index += 1
+            if progress and frame_index % 60 == 0 and reported_frames > 0:
+                progress(min(1.0, frame_index / reported_frames))
         if pending is not None:
             pending["grid"] = grid_features(pending.pop("frame"), None)
 

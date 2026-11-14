@@ -5,6 +5,8 @@
     "description": "Global sea surface currents and temperature from the ECCO2 ocean model.",
     "cover": "/media/ecco2_sst_flow_cover.jpg",
     "video": "/media/ecco2_sst_flow.mp4",
-    "duration": 66.7
+    "duration": 66.7,
+    "nasa_id": 3912,
+    "source": "https://svs.gsfc.nasa.gov/3912/"
   }
 ]

@@ -22,3 +22,14 @@ export const generateMusicConfig = (id, prompt, options = {}) => requestJson(`${
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({ prompt }),
 });
+
+// NASA search and imports. An import downloads a visualization's video, analyzes
+// it, and adds it to the track list; poll getImport until status is "done".
+export const searchNasa = (query, options) => requestJson(`/api/search?q=${encodeURIComponent(query)}`, options);
+export const getRecommendations = (options) => requestJson("/api/recommendations", options);
+export const startImport = (nasaId) => requestJson("/api/imports", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ nasa_id: nasaId }),
+});
+export const getImport = (jobId, options) => requestJson(`/api/imports/${encodeURIComponent(jobId)}`, options);

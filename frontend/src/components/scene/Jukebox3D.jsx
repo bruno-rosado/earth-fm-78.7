@@ -40,7 +40,7 @@ const Jukebox3D = ({ tracks, selectedTrack, onSelect, hidden = false }) => {
 
         if (hidden) return undefined;
         const onWheel = (e) => {
-            if (e.target.closest?.('.player-overlay')) return; // scrolling the player panel
+            if (e.target.closest?.('.ui-layer, .topbar')) return; // scrolling the overlay UI
             const now = Date.now();
             if (now - lastWheel.current < 150) return; // one step per 150ms (wheels fire a lot)
             lastWheel.current = now;

@@ -1,9 +1,14 @@
 # Track data contract
 
-`tracks.json` contains a list of tracks. Each track has a unique `id`, a `title`,
-`cover` and `video` URLs, and a `duration` in seconds. There is no description or
-music configuration in track metadata. All tracks live in this list; there is no
-separate `tracks/` directory.
+`tracks.json` is the catalog shipped with the repo: a list of tracks, each with a
+unique `id`, a `title`, `cover` and `video` URLs, a `duration` in seconds, and the
+NASA SVS `nasa_id` and `source` page it came from. There is no music configuration
+in track metadata.
+
+`library.json` (ignored by git) holds tracks imported through the app on this
+machine, in the same shape. `GET /api/tracks` returns both lists, skipping any
+track whose local video file is missing. Imported media is named `svs{nasa_id}`
+in `../media/` and `features/`, and is ignored by git too.
 
 Each track has one feature file at `features/{id}.json`. The file contains a list
 of samples ordered by `t` (seconds from the start of the video), every 1 second.
@@ -41,6 +46,11 @@ The player reads one column at a time (the longitude facing the viewer). See
 | GET | `/api/tracks/{track_id}/features` | Feature array, or 404 if the track or its feature file is missing |
 | GET | `/api/tracks/{track_id}/music-config` | Saved validated music settings; 404 if absent, 409 if stale |
 | POST | `/api/tracks/{track_id}/music-config` | Generate music settings with Gemini and save the validated result |
+| GET | `/api/search?q=…&limit=12` | NASA SVS search results that have a downloadable video, with a `track` field when already imported |
+| GET | `/api/recommendations` | Cards for the IDs in `recommendations.json` |
+| POST | `/api/imports` | `{ "nasa_id": 5665 }` → 202 with a job; the video is downloaded and analyzed in the background |
+| GET | `/api/imports/{job_id}` | Job status: `queued`, `downloading`, `analyzing`, `done` (with `track`), or `error` |
+| GET | `/api/thumbs/{nasa_id}.jpg` | NASA's preview image resized to 640 px and cached in `thumbs/` |
 
 Music settings stay separate from track metadata. See
 [`../MUSIC_CONFIG.md`](../MUSIC_CONFIG.md) for environment setup and the Tone.js

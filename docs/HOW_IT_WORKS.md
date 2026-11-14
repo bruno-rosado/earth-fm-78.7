@@ -93,6 +93,20 @@ provider failures, and invalid output appear as actionable errors. Changed sourc
 data requires regeneration. See [the music-config guide](../backend/MUSIC_CONFIG.md)
 for setup, the schema, and endpoint examples. MongoDB persistence is future work.
 
+## Searching and importing NASA videos
+
+1. The search bar calls `GET /api/search?q=…`. The backend queries the SVS API,
+   fetches each result's detail record in parallel, and keeps the ones with a
+   movie. For each it picks the smallest movie at least 960 px wide (mp4 before
+   webm) and a web-sized still, and reports the file size from a HEAD request.
+2. Clicking a card calls `POST /api/imports`. A single background worker
+   downloads the movie and thumbnail to `backend/media/svs{id}.*`, runs the same
+   feature extractor as the shipped track, and appends the track to
+   `backend/data/library.json`. The frontend polls `GET /api/imports/{job}` and
+   shows progress on the card (or a toast when the panel is closed).
+3. When the job is done the track list is refreshed and the new track plays.
+   Everything downstream (music config, playback, visuals) is unchanged.
+
 ## What happens when a user plays a track
 
 1. The page calls `GET /api/tracks` to get the track list.
