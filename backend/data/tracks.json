@@ -1,10 +1,9 @@
 [
   {
-    "id": "demo",
-    "title": "Earth Demo",
-    "description": "Placeholder track for frontend development.",
-    "cover": "/media/demo.jpg",
-    "video": "/media/demo.mp4",
-    "duration": 60
+    "id": "ecco2_sst_flow",
+    "title": "Global Sea Surface Currents and Temperature",
+    "cover": "https://svs.gsfc.nasa.gov/vis/a000000/a003900/a003912/flat_global_ecco2_2028x1024.25000.jpg",
+    "video": "https://svs.gsfc.nasa.gov/vis/a000000/a003900/a003912/ecco2_sst_flow.mp4",
+    "duration": 66.7
   }
 ]
