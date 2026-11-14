@@ -1,20 +1,32 @@
 import { useEffect, useState } from "react";
+import Scene from "./components/scene/Scene";
 import MusicPlayer from "./services/tone/musicPlayer";
+import { getTracks } from "./services/api";
+import "./styles/components/player.css";
 
 export default function App() {
-  // const [msg, setMsg] = useState("loading...");
-  // useEffect(() => {
-  //   fetch("/api/hello")
-  //     .then((r) => r.json())
-  //     .then((d) => setMsg(d.message))
-  //     .catch((e) => setMsg(`Error: ${e.message}`));
-  // }, []);
+  const [tracks, setTracks] = useState([]);
+  const [selectedTrack, setSelectedTrack] = useState(null); // null = nothing selected (plain Earth)
+
+  useEffect(() => {
+    async function load() {
+      try {
+        setTracks(await getTracks());
+      } catch (err) {
+        console.error("Could not load tracks:", err);
+      }
+    }
+    load();
+  }, []); // [] = run once when the page loads
 
   return (
-   <div>
-  <h1>Example</h1>
-
-    <MusicPlayer />
-   </div>
+    <>
+      {/* Dev 3: full-page 3D scene (globe, background, jukebox) */}
+      <Scene tracks={tracks} selectedTrack={selectedTrack} onSelect={setSelectedTrack} />
+      {/* Dev 4: music player, floating on top of the scene */}
+      <div className="player-overlay">
+        <MusicPlayer />
+      </div>
+    </>
   );
 }
