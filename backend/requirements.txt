@@ -2,3 +2,7 @@ fastapi
 uvicorn
 numpy
 opencv-python-headless
+pydantic>=2.9,<3
+google-genai>=3.3,<4
+python-dotenv
+httpx2
