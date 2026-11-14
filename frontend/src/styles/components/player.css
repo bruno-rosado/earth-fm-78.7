@@ -1,0 +1,8 @@
+/* Floats Dev 4's player above the full-page 3D canvas. */
+.player-overlay {
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  z-index: 10; /* above the canvas */
+  color: white;
+}

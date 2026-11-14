@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import Scene from "./components/scene/Scene";
+import MusicPlayer from "./services/tone/musicPlayer";
 import { getTracks } from "./services/api";
+import "./styles/components/player.css";
 
 export default function App() {
   const [tracks, setTracks] = useState([]);
@@ -17,5 +19,14 @@ export default function App() {
     load();
   }, []); // [] = run once when the page loads
 
-  return <Scene tracks={tracks} selectedTrack={selectedTrack} onSelect={setSelectedTrack} />;
+  return (
+    <>
+      {/* Dev 3: full-page 3D scene (globe, background, jukebox) */}
+      <Scene tracks={tracks} selectedTrack={selectedTrack} onSelect={setSelectedTrack} />
+      {/* Dev 4: music player, floating on top of the scene */}
+      <div className="player-overlay">
+        <MusicPlayer />
+      </div>
+    </>
+  );
 }
