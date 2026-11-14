@@ -1,13 +1,19 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Scene from "./components/scene/Scene";
-import MusicPlayer from "./services/tone/musicPlayer";
+import Dock from "./components/ui/Dock";
+import Hero from "./components/ui/Hero";
+import LoadingScreen from "./components/ui/LoadingScreen";
+import Readout from "./components/ui/Readout";
 import { getTracks } from "./services/api";
-import "./styles/components/player.css";
+import useTrackPlayer from "./services/tone/useTrackPlayer";
+import "./styles/components/ui.css";
 
 export default function App() {
   const [tracks, setTracks] = useState([]);
   const [selectedTrack, setSelectedTrack] = useState(null); // null = nothing selected (plain Earth)
+  const [autoPlay, setAutoPlay] = useState(false);
   const videoRef = useRef(null);
+  const player = useTrackPlayer(selectedTrack, videoRef, { autoPlay });
 
   useEffect(() => {
     async function load() {
@@ -20,15 +26,40 @@ export default function App() {
     load();
   }, []); // [] = run once when the page loads
 
+  // Picking a record plays it straight away, like a jukebox.
+  const select = useCallback((track) => {
+    setAutoPlay(true);
+    setSelectedTrack(track);
+  }, []);
+  const close = useCallback(() => setSelectedTrack(null), []);
+
+  // Escape returns to the track list.
+  useEffect(() => {
+    const onKey = (event) => {
+      if (event.key === "Escape" && !event.target.closest?.("input")) close();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [close]);
+
   return (
     <>
       {/* Dev 3: full-page 3D scene (globe, background, jukebox) */}
-      <Scene tracks={tracks} selectedTrack={selectedTrack} onSelect={setSelectedTrack} videoRef={videoRef} />
-      {/* Dev 4: music player, floating on top of the scene */}
-      <div className="player-overlay">
-        <MusicPlayer selectedTrack={selectedTrack} videoRef={videoRef} />
+      <Scene tracks={tracks} selectedTrack={selectedTrack} onSelect={select} videoRef={videoRef} />
+
+      <header className="brand">
+        <span className="brand-mark" aria-hidden />
+        <span className="brand-name">Earth <strong>Frequencies</strong></span>
+      </header>
+
+      <div className={`ui-layer ${selectedTrack ? "is-focused" : ""}`}>
+        {!selectedTrack && <Hero tracks={tracks} onStart={select} />}
+        {selectedTrack && <Readout key={`readout-${selectedTrack.id}`} getTime={player.getTime} />}
+        {selectedTrack && <Dock key={`dock-${selectedTrack.id}`} track={selectedTrack} player={player} onClose={close} />}
+        {!selectedTrack && <p className="browse-hint">Scroll or ← → to browse · Enter or click to play</p>}
       </div>
-      <p className="browse-hint">Scroll or ← → to browse · click a card to select · space to play</p>
+
+      <LoadingScreen />
     </>
   );
 }

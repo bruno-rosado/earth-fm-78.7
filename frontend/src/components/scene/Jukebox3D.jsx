@@ -1,13 +1,23 @@
 // Jukebox3D: a row of cards on a gentle arc below the globe. Scroll or use arrow keys to browse.
 import { useEffect, useRef, useState } from 'react';
+import { useFrame } from '@react-three/fiber';
+import * as THREE from 'three';
 import AlbumCard3D from './AlbumCard3D';
 
 const RADIUS = 10;    // bigger = flatter arc
 const SPACING = 0.22; // angle (radians) between neighboring cards
 
-const Jukebox3D = ({ tracks, selectedTrack, onSelect }) => {
+// hidden: slide the cards down out of view (while a track is open).
+const Jukebox3D = ({ tracks, selectedTrack, onSelect, hidden = false }) => {
     const [activeIndex, setActiveIndex] = useState(0);
     const lastWheel = useRef(0);
+    const groupRef = useRef();
+
+    useFrame((state, delta) => {
+        const group = groupRef.current;
+        group.position.y = THREE.MathUtils.lerp(group.position.y, hidden ? -5 : -1.9, 1 - Math.exp(-delta * 3));
+        group.visible = group.position.y > -4.8;
+    });
 
     // Start in the middle of the list. Tracks load async (empty at first render),
     // so we wait until they arrive, then center on the middle card.
@@ -28,6 +38,7 @@ const Jukebox3D = ({ tracks, selectedTrack, onSelect }) => {
         const move = (dir) =>
             setActiveIndex((i) => Math.max(0, Math.min(tracks.length - 1, i + dir)));
 
+        if (hidden) return undefined;
         const onWheel = (e) => {
             if (e.target.closest?.('.player-overlay')) return; // scrolling the player panel
             const now = Date.now();
@@ -49,11 +60,11 @@ const Jukebox3D = ({ tracks, selectedTrack, onSelect }) => {
             window.removeEventListener('wheel', onWheel);
             window.removeEventListener('keydown', onKey);
         };
-    }, [tracks, activeIndex, onSelect]);
+    }, [tracks, activeIndex, onSelect, hidden]);
 
     return (
         // Lowered so the cards sit under the globe.
-        <group position={[0, -1.9, 0]}>
+        <group ref={groupRef} position={[0, -1.9, 0]}>
             {tracks.map((track, i) => (
                 <AlbumCard3D
                     key={track.id}

@@ -89,7 +89,7 @@ const AlbumCard3D = ({ track, index, activeIndex, isSelected, onSelect, radius, 
             )}
             <mesh geometry={geometry}>
                 {/* key: recreate the material when the cover arrives so its shader includes the map. */}
-                <meshBasicMaterial key={cover ? 'cover' : 'color'} map={cover} color={cover ? 'white' : track.color ?? 'rgb(29, 125, 224)'} toneMapped={false} />
+                <meshBasicMaterial key={cover ? 'cover' : 'color'} map={cover} color={cover ? '#d9d9d9' : track.color ?? 'rgb(29, 125, 224)'} toneMapped={false} />
             </mesh>
             {cover ? (
                 <Text position={[0, -SIZE / 2 + 0.1, 0.01]} fontSize={0.1} maxWidth={SIZE - 0.2} textAlign="center" color="white" anchorX="center" anchorY="bottom" outlineWidth={0.012} outlineColor="black" outlineOpacity={0.8}>

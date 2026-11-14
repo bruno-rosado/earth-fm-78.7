@@ -196,6 +196,26 @@ function createChords(config, features, duration) {
   return chords;
 }
 
+const NOTE_NAMES = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"];
+
+const TRIADS = { "4,7": "", "3,7": "m", "3,6": "dim", "4,8": "+", "2,7": "sus2", "5,7": "sus4" };
+
+// Name a three-note chord from its pitch classes in any inversion, e.g. "Bm".
+export function chordName(pitchClasses) {
+  for (const root of pitchClasses) {
+    const intervals = pitchClasses.filter((pc) => pc !== root).map((pc) => (pc - root + 12) % 12).sort((a, b) => a - b);
+    const quality = TRIADS[intervals.join(",")];
+    if (quality !== undefined) return NOTE_NAMES[root] + quality;
+  }
+  return NOTE_NAMES[pitchClasses[0]];
+}
+
+// What the scan line passes over across the track, for drawing a timeline:
+// `steps` entries of { warmth, presence } evenly spaced from 0 to duration.
+export function scanTimeline(features, duration, steps) {
+  return Array.from({ length: steps }, (_, i) => columnClimate(features, (duration * i) / Math.max(1, steps - 1)));
+}
+
 export function createMusicEvents(config, features, duration) {
   if (!features?.length || !features[0].grid?.length || !Number.isFinite(duration) || duration <= 0) {
     throw new Error("Track features and duration are required for playback.");

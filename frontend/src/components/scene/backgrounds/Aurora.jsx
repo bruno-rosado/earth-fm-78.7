@@ -30,8 +30,8 @@ const Aurora = ({ getLevel }) => {
     return (
         // Pushed back to z = -5 so it sits behind the globe (which is at z = 0).
         <mesh position={[0, 0, -5]}>
-            {/* 20 x 12 units: big enough to fill the background at the default camera distance. */}
-            <planeGeometry args={[20, 12]} />
+            {/* 28 x 15 units: fills the background even when the camera pans. */}
+            <planeGeometry args={[28, 15]} />
             <shaderMaterial
                 ref={matRef}
                 vertexShader={auroraVertex}

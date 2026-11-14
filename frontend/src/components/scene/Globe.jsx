@@ -6,6 +6,8 @@ import { useFrame, useLoader } from '@react-three/fiber';
 import * as THREE from 'three';
 import { globeRotationFor, scanPosition } from '../../services/tone/musicMapping';
 import { sonification } from '../../services/tone/sonificationState';
+import Ripples from './Ripples';
+import SpectrumRing from './SpectrumRing';
 
 const RADIUS = 1;
 const MARKER_RADIUS = 1.025;
@@ -53,9 +55,9 @@ const BandMarkers = () => {
             const mesh = meshes.current[row];
             if (!mesh) return;
             band.level *= Math.exp(-delta * 2); // decay after each note
-            mesh.scale.setScalar(0.7 + band.level * 2.6);
+            mesh.scale.setScalar(0.6 + band.level * 1.6);
             mesh.material.opacity = sonification.active ? 0.3 + Math.min(0.7, band.level * 1.4) : 0;
-            mesh.material.color.copy(COLD).lerp(WARM, band.warmth);
+            mesh.material.color.copy(COLD).lerp(WARM, band.warmth).multiplyScalar(1 + band.level * 0.9);
         });
     });
 
@@ -75,7 +77,7 @@ const Globe = ({ videoUrl, playbackVideoRef }) => {
     const videoMatRef = useRef();
     const scanMatRef = useRef();
     const atmosphereRef = useRef();
-    // MusicPlayer drives play/pause through the shared ref.
+    // The playback engine drives play/pause through the shared ref.
     const localVideoRef = useRef(null);
     const videoRef = playbackVideoRef ?? localVideoRef;
     const [videoTexture, setVideoTexture] = useState(null);
@@ -151,7 +153,13 @@ const Globe = ({ videoUrl, playbackVideoRef }) => {
     return (
         // Positioned up a bit so the jukebox fits below.
         <group position={[0, 0.9, 0]}>
-            <group ref={groupRef}>
+            {/* Clicking the globe plays or pauses the open track. */}
+            <group
+                ref={groupRef}
+                onClick={(e) => { if (sonification.toggle) { e.stopPropagation(); sonification.toggle(); } }}
+                onPointerOver={() => { if (sonification.toggle) document.body.style.cursor = 'pointer'; }}
+                onPointerOut={() => { document.body.style.cursor = 'auto'; }}
+            >
                 <mesh>
                     <sphereGeometry args={[RADIUS, 64, 64]} />
                     <meshStandardMaterial map={earthTexture} />
@@ -161,6 +169,7 @@ const Globe = ({ videoUrl, playbackVideoRef }) => {
                     <sphereGeometry args={[RADIUS * 1.005, 64, 64]} />
                     <meshStandardMaterial ref={videoMatRef} map={videoTexture} transparent opacity={0} emissive="white" emissiveMap={videoTexture} emissiveIntensity={0.35} />
                 </mesh>
+                <Ripples />
             </group>
 
             {/* These stay facing the camera while the globe turns underneath. */}
@@ -180,9 +189,10 @@ const Globe = ({ videoUrl, playbackVideoRef }) => {
             {/* Scan line: a half ring from pole to pole along the front meridian. */}
             <mesh rotation={[0, -Math.PI / 2, -Math.PI / 2]}>
                 <torusGeometry args={[MARKER_RADIUS, 0.004, 8, 96, Math.PI]} />
-                <meshBasicMaterial ref={scanMatRef} color="#bfe3ff" transparent opacity={0} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
+                <meshBasicMaterial ref={scanMatRef} color={[0.9, 1.15, 1.45]} transparent opacity={0} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
             </mesh>
             <BandMarkers />
+            <SpectrumRing />
         </group>
     );
 };

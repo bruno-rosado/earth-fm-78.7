@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
-  createMusicEvents, DEFAULT_CONFIG, globeRotationFor, MODES, sampleCell, scanPosition, SCAN_PERIOD,
+  chordName, createMusicEvents, scanTimeline, DEFAULT_CONFIG, globeRotationFor, MODES, sampleCell, scanPosition, SCAN_PERIOD,
 } from "./musicMapping.js";
 
 const samples = JSON.parse(readFileSync(new URL("../../../../backend/data/features/ecco2_sst_flow.json", import.meta.url)));
@@ -95,4 +95,19 @@ test("every mode and the default style produce music", () => {
   }
   assert.throws(() => createMusicEvents({ ...config, mode: "locrian" }, samples, DURATION));
   assert.throws(() => createMusicEvents(config, [], DURATION));
+});
+
+test("chords are named in any inversion", () => {
+  assert.equal(chordName([2, 6, 9]), "D");
+  assert.equal(chordName([2, 6, 11]), "Bm");
+  assert.equal(chordName([11, 2, 5]), "Bdim");
+  assert.equal(chordName([2, 7, 9]), "Dsus4");
+});
+
+test("timeline shows warm tropical water and darker land along the scan", () => {
+  const strip = scanTimeline(samples, DURATION, 200);
+  assert.equal(strip.length, 200);
+  assert.ok(strip.every(({ warmth, presence }) => warmth >= 0 && warmth <= 1 && presence >= 0 && presence <= 1));
+  const presences = strip.map((point) => point.presence);
+  assert.ok(Math.max(...presences) - Math.min(...presences) > 0.15, "land and ocean differ along the scan");
 });

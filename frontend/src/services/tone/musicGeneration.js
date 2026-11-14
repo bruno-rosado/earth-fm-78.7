@@ -1,5 +1,5 @@
 import * as Tone from "tone";
-import { createMusicEvents } from "./musicMapping";
+import { chordName, createMusicEvents, scanPosition } from "./musicMapping";
 import { resetBands, sonification } from "./sonificationState";
 
 const INSTRUMENTS = { synth: Tone.Synth, fm_synth: Tone.FMSynth, am_synth: Tone.AMSynth };
@@ -47,7 +47,9 @@ export async function createPlayback({ config, features, duration, video, onEnde
   const reverb = new Tone.Reverb({ decay: 7, preDelay: 0.03, wet: config.reverb }).connect(compressor);
   const delay = new Tone.FeedbackDelay({ delayTime: "4n.", feedback: 0.22, wet: 0.16 }).connect(reverb);
   const meter = new Tone.Meter({ smoothing: 0.85, normalRange: true });
+  const fft = new Tone.FFT({ size: 128, smoothing: 0.8 });
   master.connect(meter);
+  master.connect(fft);
   await reverb.ready;
 
   // One lead voice per latitude band, each with its own tone filter and pan.
@@ -66,7 +68,7 @@ export async function createPlayback({ config, features, duration, video, onEnde
     envelope: { attack: 0.5, decay: 0.4, sustain: 0.85, release: 2.5 },
     filterEnvelope: { attack: 0.5, baseFrequency: 140, octaves: 1.5, release: 2 },
   }).connect(compressor);
-  const nodes = [master, limiter, compressor, reverb, delay, meter, padFilter, pad, bass,
+  const nodes = [master, limiter, compressor, reverb, delay, meter, fft, padFilter, pad, bass,
     ...voices.flatMap((voice) => [voice.synth, voice.filter, voice.panner])];
 
   resetBands(events.rows);
@@ -82,12 +84,16 @@ export async function createPlayback({ config, features, duration, video, onEnde
       if (!band) return;
       band.level = Math.min(1, band.level + lead.velocity * 2);
       band.warmth = lead.warmth;
+      if (sonification.ripples.length < 64) {
+        sonification.ripples.push({ row: lead.row, u: scanPosition(lead.t), warmth: lead.warmth, velocity: lead.velocity });
+      }
     }, time);
   }, events.leads.map((lead) => [lead.t, lead])).start(0);
   const chordPart = new Tone.Part((time, chord) => {
     padFilter.frequency.rampTo(500 + chord.warmth * 2200, 2, time);
     pad.triggerAttackRelease(chord.notes.map(midi), chord.duration + 0.4, time, chord.velocity);
     bass.triggerAttackRelease(midi(chord.bass), chord.duration * 0.95, time, chord.velocity * 0.9);
+    draw.schedule(() => { sonification.chord = chordName(chord.pitchClasses); }, time);
   }, events.chords.map((chord) => [chord.t, chord])).start(0);
 
   let volume = 0.8;
@@ -165,6 +171,7 @@ export async function createPlayback({ config, features, duration, video, onEnde
     duration,
     getTime,
     getLevel: () => Math.min(1, meter.getValue() * 2.5),
+    getSpectrum: () => fft.getValue(),
     isPlaying: () => playing,
     async play() {
       if (disposed || playing) return;
@@ -219,5 +226,6 @@ export async function createPlayback({ config, features, duration, video, onEnde
   sonification.active = true;
   sonification.getTime = getTime;
   sonification.getLevel = playback.getLevel;
+  sonification.getSpectrum = playback.getSpectrum;
   return playback;
 }

@@ -33,7 +33,8 @@ export const auroraFragment = /* glsl */ `
     float band = smoothstep(0.0, 0.3, vUv.y - wave * 0.5) * smoothstep(1.0, 0.5, vUv.y);
     vec3 green  = vec3(0.1, 1.0, 0.6);                    // TWEAK colors (r, g, b 0-1)
     vec3 purple = vec3(0.6, 0.2, 1.0);
-    vec3 col = mix(green, purple, vUv.y) * band * (0.4 + uLevel); // louder = brighter
+    // Scaled down: the frame goes through a linear -> sRGB output pass, which brightens colors.
+    vec3 col = mix(green, purple, vUv.y) * band * (0.4 + uLevel) * 0.32; // louder = brighter
     gl_FragColor = vec4(col, uOpacity); // alpha = fade amount
   }
 `;

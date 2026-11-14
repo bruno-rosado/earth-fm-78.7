@@ -32,6 +32,21 @@ use **Style → Generate** to have Gemini choose the key, mode, tempo, and instr
 See [backend/MUSIC_CONFIG.md](backend/MUSIC_CONFIG.md) for the mapping, config
 format, endpoints, and tests.
 
+## Using the app
+
+- **Start listening** (or click a record) opens the track and plays it. The camera
+  glides in on the globe.
+- **Play/pause:** the big button, the Space bar, or click the globe. Drag the
+  timeline to seek; its colors are the sea temperature the scan line will cross,
+  and it dims where the scan crosses land.
+- **On the globe:** the scan line marks the longitude being played; each note
+  ripples out where its data came from; the ring around the planet is the live
+  audio spectrum.
+- **Readout (right):** scan longitude, ocean region, current chord, and a meter per
+  latitude voice colored by water temperature.
+- **Style:** pick a preset or describe a mood for Gemini. **✕** or Escape returns
+  to the track list.
+
 ## Tests
 
 Backend tests live in `backend/tests/`. Run them from the repository root:
