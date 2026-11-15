@@ -165,7 +165,7 @@ export default function useTrackPlayer(
         created.dispose();
         return;
       }
-      created.setVolume(volume);
+      created.setVolume(volumeRef.current * (duckingRef.current ? 0.2 : 1));
       created.seek(currentTime);
       playback.current = created;
       await created.play();
@@ -183,7 +183,7 @@ export default function useTrackPlayer(
         && scanPatternRef.current === pattern
         && dataSourceRef.current === source) setStarting(false);
     }
-  }, [track, ready, videoRef, volume]);
+  }, [track, ready, videoRef]);
 
   const setScanPattern = useCallback(async (pattern: ScanPattern) => {
     if (pattern === scanPatternRef.current) return;
@@ -208,7 +208,6 @@ export default function useTrackPlayer(
 
   return {
     ready, starting, playing, volume, scanPattern, dataSource, error, notice, play, pause, toggle, seek, setVolume,
-    setScanPattern, setDataSource, getTime,
+    setScanPattern, setDataSource, setDucking, getTime,
   };
-  return { ready, starting, playing, volume, error, notice, play, pause, toggle, seek, setVolume, setDucking, getTime };
 }
