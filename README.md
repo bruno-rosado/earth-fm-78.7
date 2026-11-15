@@ -86,6 +86,35 @@ Test with VoiceOver or NVDA on the target device. These improvements have not be
 certified as full WCAG conformance. References: [W3C keyboard/focus guidance](https://www.w3.org/WAI/WCAG21/Understanding/focus-visible.html)
 and [media playback rate](https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement/playbackRate).
 
+## Google AI Mode explanations with SerpAPI
+
+Below a selected track's NASA source link, click **Ask Google AI Mode**. The
+backend uses SerpAPI's `google_ai_mode` engine to request a short explanation of
+the track, grounded in its title and NASA SVS source. The returned AI answer is
+displayed as readable paragraphs, with up to five returned references in an
+expandable Sources section. It is labeled as AI-generated. Requests happen only
+on click; the explanation can be hidden and reopened without another provider call.
+Answers render Markdown and LaTeX math, including temperature notation such as
+`$20^{\circ}\text{C}$`. The renderer loads only when an answer is shown and also
+formats existing cached answers. Math includes an accessible MathML equivalent;
+raw HTML, unsafe links, and remote Markdown images are disabled.
+
+Add this to `backend/.env`, then restart the backend:
+
+```dotenv
+SERPAPI_API_KEY=your_serpapi_key_here
+```
+
+The key stays on the server. `backend/.env.example` includes the variable; never
+put the key in a `VITE_` variable. `GET /api/tracks/{id}/search` returns AI explanations
+for known tracks only. Normalized answers are cached for seven days in ignored
+`backend/data/track_search/` and memory, with up to 64 entries. Metadata changes
+invalidate the cache. The cache version and engine distinguish AI answers from
+older regular-search results. Missing credentials, absent answers, and provider
+failures show a readable retry message. AI Mode requests allow up to 60 seconds.
+Tests cover answer parsing, references, missing answers, credentials, and caching.
+Integration follows the [SerpAPI Google AI Mode API](https://serpapi.com/google-ai-mode-api).
+
 ## Add a curated visualization
 
 Place a local video and cover in `backend/media/`, add its metadata to
