@@ -136,8 +136,10 @@ const averageCells = (cells) => cells[0].map((_, field) =>
   cells.reduce((sum, cell) => sum + cell[field], 0) / cells.length);
 
 export function sampleScanCell(features, time, duration, row, pattern = "left-to-right", dataSource = "brightness") {
-  const selectedWarmth = sampleDataWarmth(features, time, dataSource);
-  const withSelectedWarmth = (cell) => [cell[0], selectedWarmth, cell[2], cell[3]];
+  // Color pitch comes from each cell under the scan. The grid has no per-cell
+  // brightness yet, so brightness still uses the whole-frame value.
+  const selectedWarmth = dataSource === "color" ? null : sampleDataWarmth(features, time, dataSource);
+  const withSelectedWarmth = (cell) => selectedWarmth === null ? cell : [cell[0], selectedWarmth, cell[2], cell[3]];
   const rows = features[0].grid.length;
   const columns = features[0].grid[row].length;
   const y = (row + 0.5) / rows;
@@ -312,8 +314,11 @@ export function createMusicEvents(config, features, duration, pattern = "left-to
   const rows = features[0].grid.length;
   const chords = createChords(config, features, duration, pattern);
   const base = degreeToMidi(config, 0);
-  const scalePitch = normalizer(features.map((sample) =>
-    dataSource === "brightness" ? sample.brightness : colorWarmth(sample.color)), 1e-6);
+  const pitchValues = dataSource === "brightness"
+    ? features.map((sample) => sample.brightness)
+    : features.flatMap((sample) => sample.grid.flat()
+      .filter((cell) => cell[0] >= SILENT_BELOW).map((cell) => cell[1]));
+  const scalePitch = normalizer(pitchValues.length ? pitchValues : [0, 1], 1e-6);
   // Stagger voices so equal densities don't all fire on the same step.
   const phase = Array.from({ length: rows }, (_, row) => (row * 0.618) % 1);
   const leads = [];

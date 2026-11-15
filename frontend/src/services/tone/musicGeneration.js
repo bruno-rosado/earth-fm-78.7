@@ -135,19 +135,20 @@ export async function createPlayback({
   const delay = new Tone.FeedbackDelay({ delayTime: "4n.", feedback: 0.22, wet: 0.16 }).connect(reverb);
   await reverb.ready;
 
+  // Image notes are the focus: leads sit well above the pad and bass.
   // One lead voice per latitude band, each with its own tone filter and pan.
   const voices = Array.from({ length: events.rows }, () => {
     const panner = new Tone.Panner(0).connect(delay);
     const filter = new Tone.Filter({ frequency: 1500, type: "lowpass", rolloff: -12 }).connect(panner);
-    const synth = new Tone.PolySynth(leadInstrument.voice, { ...leadInstrument.lead, volume: -10 + (leadInstrument.trim ?? 0) }).connect(filter);
+    const synth = new Tone.PolySynth(leadInstrument.voice, { ...leadInstrument.lead, volume: -4 + (leadInstrument.trim ?? 0) }).connect(filter);
     synth.maxPolyphony = 4;
     return { synth, filter, panner };
   });
   const padFilter = new Tone.Filter({ frequency: 900, type: "lowpass", rolloff: -24 }).connect(reverb);
-  const pad = new Tone.PolySynth(padInstrument.voice, { ...padInstrument.pad, volume: -14 + (padInstrument.trim ?? 0) }).connect(padFilter);
+  const pad = new Tone.PolySynth(padInstrument.voice, { ...padInstrument.pad, volume: -42 + (padInstrument.trim ?? 0) }).connect(padFilter);
   pad.maxPolyphony = 8;
   const bass = new Tone.MonoSynth({
-    oscillator: { type: "sine" }, volume: -9,
+    oscillator: { type: "sine" }, volume: -42,
     envelope: { attack: 0.5, decay: 0.4, sustain: 0.85, release: 2.5 },
     filterEnvelope: { attack: 0.5, baseFrequency: 140, octaves: 1.5, release: 2 },
   }).connect(compressor);

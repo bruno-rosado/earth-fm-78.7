@@ -202,3 +202,15 @@ test("timeline shows latitude and ocean presence along the scan", () => {
   const presences = strip.map((point) => point.presence);
   assert.ok(Math.max(...presences) - Math.min(...presences) > 0.15, "land and ocean differ along the scan");
 });
+
+test("color pitch follows the cells under the scan, not one whole-frame value", () => {
+  const pitches = (pattern) => createMusicEvents(config, samples, DURATION, pattern, "color").leads;
+  const leads = pitches("left-to-right");
+  const byTime = new Map();
+  for (const lead of leads) (byTime.get(lead.t) ?? byTime.set(lead.t, new Set()).get(lead.t)).add(lead.note);
+  assert.ok([...byTime.values()].some((notes) => notes.size > 1), "voices should play different pitches at once");
+
+  // Opposite scans read the map in opposite order, so their melodies differ.
+  const melody = (pattern) => pitches(pattern).map((lead) => lead.note).join(",");
+  assert.notEqual(melody("left-to-right"), melody("right-to-left"));
+});
