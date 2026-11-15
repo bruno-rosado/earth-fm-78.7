@@ -1,8 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import AlbumGrid from "./components/AlbumGrid";
+import AccessibilitySettings from "./components/AccessibilitySettings";
 import PlayerPanel from "./components/PlayerPanel";
+import ReadAloud from "./components/ReadAloud";
 import { getTrack, getTrackFeatures, getTracks } from "./services/api";
 import useTrackPlayer from "./services/tone/useTrackPlayer";
+import { describePage } from "./services/accessibility.js";
+import { useAccessibilityPreferences, useSpeech } from "./services/useAccessibility";
 import type { CatalogTrack, Track } from "./types";
 
 export default function App() {
@@ -15,6 +19,22 @@ export default function App() {
   const [trackError, setTrackError] = useState("");
   const videoRef = useRef<HTMLVideoElement>(null);
   const player = useTrackPlayer(track, videoRef);
+  const settings = useAccessibilityPreferences();
+  const speech = useSpeech(settings.preferences, player.setDucking);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const settingsTrigger = useRef<HTMLButtonElement>(null);
+  const closeSettings = useCallback(() => {
+    setSettingsOpen(false);
+    settingsTrigger.current?.focus();
+  }, []);
+  useEffect(() => {
+    if (!settingsOpen) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") { event.preventDefault(); closeSettings(); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [settingsOpen, closeSettings]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -61,17 +81,22 @@ export default function App() {
 
   const selectTrack = (id: string) => {
     if (id === selectedId) return;
+    speech.stop();
     setTrack(null);
     setSelectedId(id);
   };
 
   const closeTrack = () => {
+    speech.stop();
+    const previousId = selectedId;
     setSelectedId(null);
     setTrack(null);
+    if (previousId) document.getElementById(`track-${previousId}`)?.focus();
   };
 
   return (
-    <main className="app-shell">
+    <div className="app-shell">
+      <a className="skip-link" href="#main-content">Skip to main content</a>
       <header className="site-header">
         <a className="wordmark" href="/" aria-label="Earth FM 78.7 home" onClick={(event) => {
           event.preventDefault();
@@ -80,8 +105,15 @@ export default function App() {
           <span className="wordmark-icon" aria-hidden>EF</span>
           <span>EARTH <strong>FM 78.7</strong></span>
         </a>
-        <span className="header-note">NASA DATA · GENERATED SOUND</span>
+        <div className="header-actions">
+          <button type="button" className="access-button contrast-toggle" aria-pressed={settings.preferences.highContrast} onClick={() => settings.setPreference("highContrast", !settings.preferences.highContrast)}>High contrast <span aria-hidden>{settings.preferences.highContrast ? "On" : "Off"}</span></button>
+          <button type="button" className="access-button" ref={settingsTrigger} aria-expanded={settingsOpen} aria-controls="accessibility-settings" onClick={() => settingsOpen ? closeSettings() : setSettingsOpen(true)}>Accessibility</button>
+        </div>
       </header>
+
+      <AccessibilitySettings open={settingsOpen} settings={settings} speech={speech} onClose={closeSettings} onReadPage={() => speech.read(describePage(tracks))} />
+      <p className="sr-only" role="status" aria-atomic="true">{speech.message}</p>
+      <main id="main-content" tabIndex={-1}>
 
       <section className="intro">
         <p className="eyebrow"><span className="status-dot" /> A jukebox for our living planet</p>
@@ -90,7 +122,10 @@ export default function App() {
           Scientific visualizations become original soundtracks. Choose a record
           to see the data and hear it come alive.
         </p>
+        <div className="page-reading-actions"><button className="access-button" type="button" onClick={() => speech.read(describePage(tracks))} disabled={tracksLoading}>{speech.supported ? "Read page aloud" : "Show page transcript"}</button>{speech.speaking && <button className="access-button" type="button" onClick={speech.stop}>Stop reading</button>}</div>
       </section>
+
+      {speech.text && <ReadAloud speech={speech} />}
 
       <section className="collection" aria-labelledby="collection-title">
         <div className="section-heading">
@@ -101,7 +136,7 @@ export default function App() {
           <span className="track-count">{tracks.length.toString().padStart(2, "0")} TRACKS</span>
         </div>
 
-        {tracksLoading && <p className="status-message">Loading the collection…</p>}
+        {tracksLoading && <p className="status-message" role="status">Loading the collection…</p>}
         {tracksError && <p className="status-message error-message" role="alert">{tracksError}</p>}
         {!tracksLoading && !tracksError && tracks.length === 0 && (
           <p className="status-message">No albums are available yet.</p>
@@ -124,14 +159,17 @@ export default function App() {
           track={track}
           videoRef={videoRef}
           player={player}
+          preferences={settings.preferences}
+          speech={speech}
           onClose={closeTrack}
         />
       )}
+      </main>
 
       <footer className="site-footer">
         <span>EARTH FM 78.7</span>
         <span>Preprocessed NASA imagery · Sonification in your browser</span>
       </footer>
-    </main>
+    </div>
   );
 }

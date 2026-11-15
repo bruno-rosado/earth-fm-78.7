@@ -8,9 +8,12 @@ interface AudioVisualizerProps {
   getTime: () => number;
   playing: boolean;
   pattern: ScanPattern;
+  reducedMotion: boolean;
+  highContrast: boolean;
+  pausedTime: number;
 }
 
-export default function AudioVisualizer({ features, duration, getTime, playing, pattern }: AudioVisualizerProps) {
+export default function AudioVisualizer({ features, duration, getTime, playing, pattern, reducedMotion, highContrast, pausedTime }: AudioVisualizerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -49,7 +52,7 @@ export default function AudioVisualizer({ features, duration, getTime, playing, 
           );
           const hue = 220 - temperature * 180;
           const lightness = 28 + speed * 36;
-          context.fillStyle = `hsla(${hue}, 78%, ${lightness}%, ${0.12 + presence * 0.88})`;
+          context.fillStyle = highContrast ? `hsl(${hue}, 85%, ${20 + speed * 55 + presence * 10}%)` : `hsla(${hue}, 78%, ${lightness}%, ${0.12 + presence * 0.88})`;
           context.fillRect(
             insetX + column * cellWidth + 1,
             insetY + row * cellHeight + 1,
@@ -59,39 +62,41 @@ export default function AudioVisualizer({ features, duration, getTime, playing, 
         }
       }
 
-      const path = scanPath(time, duration, pattern);
-      context.beginPath();
-      context.strokeStyle = playing ? "rgba(248, 219, 169, .95)" : "rgba(248, 219, 169, .45)";
-      context.lineWidth = 2;
-      if (path.type === "vertical") {
-        const scanX = insetX + path.position * (bounds.width - insetX * 2);
-        context.moveTo(scanX, insetY);
-        context.lineTo(scanX, bounds.height - insetY);
-        context.stroke();
-      } else if (path.type === "rotating-line") {
-        const centerX = bounds.width / 2;
-        const centerY = bounds.height / 2;
-        const length = Math.hypot(bounds.width, bounds.height);
-        context.save();
-        context.translate(centerX, centerY);
-        context.rotate(path.angle);
-        context.moveTo(-length / 2, 0);
-        context.lineTo(length / 2, 0);
-        context.stroke();
-        context.restore();
-      } else {
-        const radiusX = path.radius * bounds.width / Math.SQRT2;
-        const radiusY = path.radius * bounds.height / Math.SQRT2;
-        context.ellipse(bounds.width / 2, bounds.height / 2, Math.max(radiusX, 1), Math.max(radiusY, 1), 0, 0, Math.PI * 2);
-        context.stroke();
+      if (!reducedMotion) {
+        const path = scanPath(time, duration, pattern);
+        context.beginPath();
+        context.strokeStyle = highContrast ? "#fff" : playing ? "rgba(248, 219, 169, .95)" : "rgba(248, 219, 169, .45)";
+        context.lineWidth = highContrast ? 3 : 2;
+        if (path.type === "vertical") {
+          const scanX = insetX + path.position * (bounds.width - insetX * 2);
+          context.moveTo(scanX, insetY);
+          context.lineTo(scanX, bounds.height - insetY);
+          context.stroke();
+        } else if (path.type === "rotating-line") {
+          const length = Math.hypot(bounds.width, bounds.height);
+          context.save();
+          context.translate(bounds.width / 2, bounds.height / 2);
+          context.rotate(path.angle);
+          context.moveTo(-length / 2, 0);
+          context.lineTo(length / 2, 0);
+          context.stroke();
+          context.restore();
+        } else {
+          const radiusX = path.radius * bounds.width / Math.SQRT2;
+          const radiusY = path.radius * bounds.height / Math.SQRT2;
+          context.ellipse(bounds.width / 2, bounds.height / 2, Math.max(radiusX, 1), Math.max(radiusY, 1), 0, 0, Math.PI * 2);
+          context.stroke();
+        }
       }
-
-      frame = window.requestAnimationFrame(draw);
+      if (playing && !reducedMotion) frame = window.requestAnimationFrame(draw);
     };
 
     frame = window.requestAnimationFrame(draw);
-    return () => window.cancelAnimationFrame(frame);
-  }, [features, duration, getTime, playing, pattern]);
+    const timer = reducedMotion && playing ? window.setInterval(draw, 1000) : undefined;
+    const resize = () => { if (!playing || reducedMotion) draw(); };
+    window.addEventListener("resize", resize);
+    return () => { window.cancelAnimationFrame(frame); window.clearInterval(timer); window.removeEventListener("resize", resize); };
+  }, [features, duration, getTime, playing, pattern, reducedMotion, highContrast, pausedTime]);
 
-  return <canvas className="data-visualizer" ref={canvasRef} role="img" aria-label="Animated map of the track's measured ocean data" />;
+  return <canvas className="data-visualizer" ref={canvasRef} role="img" aria-label="Image feature grid: color indicates visual warmth and intensity indicates optical flow. Written values and a sound explanation follow below." />;
 }

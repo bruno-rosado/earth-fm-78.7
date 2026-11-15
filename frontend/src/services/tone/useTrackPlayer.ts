@@ -19,6 +19,7 @@ export interface TrackPlayer {
   setVolume(value: number): void;
   setScanPattern(pattern: ScanPattern): Promise<void>;
   setDataSource(source: DataSource): Promise<void>;
+  setDucking(active: boolean): void;
   getTime(): number;
 }
 
@@ -31,6 +32,8 @@ export default function useTrackPlayer(
   const [volume, setVolumeState] = useState(0.8);
   const [scanPattern, setScanPatternState] = useState<ScanPattern>("left-to-right");
   const [dataSource, setDataSourceState] = useState<DataSource>("brightness");
+  const volumeRef = useRef(0.8);
+  const duckingRef = useRef(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const playback = useRef<Playback | null>(null);
@@ -86,7 +89,7 @@ export default function useTrackPlayer(
           created.dispose();
           return;
         }
-        created.setVolume(volume);
+        created.setVolume(volumeRef.current * (duckingRef.current ? 0.2 : 1));
         created.seek(position.current);
         playback.current = created;
       }
@@ -99,7 +102,7 @@ export default function useTrackPlayer(
     } finally {
       if (revision.current === currentRevision) setStarting(false);
     }
-  }, [track, ready, starting, videoRef, volume]);
+  }, [track, ready, starting, videoRef]);
 
   const pause = useCallback(() => {
     playback.current?.pause();
@@ -119,8 +122,9 @@ export default function useTrackPlayer(
 
   const setVolume = useCallback((value: number) => {
     const next = Math.max(0, Math.min(1, value));
+    volumeRef.current = next;
     setVolumeState(next);
-    playback.current?.setVolume(next);
+    playback.current?.setVolume(next * (duckingRef.current ? 0.2 : 1));
   }, []);
 
   const reconfigurePlayback = useCallback(async (
@@ -195,10 +199,16 @@ export default function useTrackPlayer(
     await reconfigurePlayback(scanPatternRef.current, source, "Could not change sonification data source.");
   }, [reconfigurePlayback]);
 
+  const setDucking = useCallback((active: boolean) => {
+    duckingRef.current = active;
+    playback.current?.setVolume(volumeRef.current * (active ? 0.2 : 1));
+  }, []);
+
   const getTime = useCallback(() => playback.current?.getTime() ?? position.current, []);
 
   return {
     ready, starting, playing, volume, scanPattern, dataSource, error, notice, play, pause, toggle, seek, setVolume,
     setScanPattern, setDataSource, getTime,
   };
+  return { ready, starting, playing, volume, error, notice, play, pause, toggle, seek, setVolume, setDucking, getTime };
 }

@@ -50,6 +50,42 @@ features are requested when a record is selected; scrolling the collection does
 not make additional API calls. Music configurations are built ahead of time,
 so no AI provider or API key is needed to run the app.
 
+## Accessibility
+
+Use **High contrast** in the header for bright text and stronger outlines. Open
+**Accessibility** for standard, large, or extra-large text, reduced visual motion,
+reading speed, and independent narration volume. Choices persist on this device;
+system contrast/motion preferences are used until you make an explicit choice.
+
+**Read page aloud** and **Explain track description**
+prepare a narration clip only after a click. A matching transcript is shown,
+and music is temporarily quieter while narration speaks. **Stop reading**, choosing
+another track, or closing the player cancels the voice and restores music volume.
+If audio is unsupported, blocked, or fails to start, the written transcript remains.
+No additional API key is needed. The backend uses the installed macOS system voice
+(`say`); Linux servers need `espeak-ng` or `espeak` installed. Other servers retain
+the written transcript. Narration is cached in ignored `backend/data/narration/`
+(up to 16 clips), with up to four audio responses cached in the browser session.
+Restart the backend after adding this endpoint.
+
+Speed and volume update the same audio element's `playbackRate` and `volume`.
+They do not stop, recreate, seek, or reload narration. Pitch is preserved when
+changing speed. The **Read aloud** view
+can be collapsed without stopping speech, and **Stop reading** stays available
+while it is collapsed.
+
+Keyboard checks: Tab from the address bar to the skip link, header, collection,
+and player; Enter/Space activate buttons, arrows adjust sliders, and Escape closes
+settings and returns focus to its button. Selecting a track focuses its heading;
+returning to the collection restores focus to its card. Data values and the sound
+legend supplement the canvas without continuously interrupting a screen reader.
+
+Before release, verify at 200% zoom and a narrow viewport; test saved preferences
+after refresh, speech stop/replacement/failure, and narration while music is playing.
+Test with VoiceOver or NVDA on the target device. These improvements have not been
+certified as full WCAG conformance. References: [W3C keyboard/focus guidance](https://www.w3.org/WAI/WCAG21/Understanding/focus-visible.html)
+and [media playback rate](https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement/playbackRate).
+
 ## Add a curated visualization
 
 Place a local video and cover in `backend/media/`, add its metadata to

@@ -54,9 +54,11 @@ export default function AlbumGrid({ tracks, selectedId, onSelect }: AlbumGridPro
           >
             <button
               className={`album-card${track.id === selectedId ? " is-selected" : ""}`}
+              id={`track-${track.id}`}
               type="button"
               onClick={() => onSelect(track.id)}
               aria-pressed={track.id === selectedId}
+              aria-label={`Open ${track.title}, ${formatDuration(track.duration)}`}
             >
               <span className="album-cover">
                 {track.cover ? <img src={track.cover} alt="" loading="lazy" /> : <span aria-hidden>EF</span>}
