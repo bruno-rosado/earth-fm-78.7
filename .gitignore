@@ -10,4 +10,5 @@ backend/media/ecco2_sst_flow.webmhd.webm
 backend/data/thumbs/*.jpg
 # Local NASA video copies may be large and are managed per machine.
 backend/data/library.json
+backend/data/narration/
 backend/media/svs*

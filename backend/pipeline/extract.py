@@ -267,7 +267,7 @@ def main():
             **(existing or {}), **extract_track(args.nasa_id, args.video, args.track_id)
         }
         features = extract_features(args.video)
-        # The summary and default config are refreshed by build_tracks.py.
+        # The summary is refreshed by build_tracks.py.
         track = {**track, "features": features}
         if existing is None:
             tracks.append(track)

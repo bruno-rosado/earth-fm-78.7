@@ -38,18 +38,15 @@ class TrackRouteTests(unittest.TestCase):
         self.addCleanup(patcher.stop)
         self.client = TestClient(app)
 
-    def test_curated_catalog_contains_the_two_extracted_svs_tracks(self):
+    def test_curated_catalog_contains_only_the_selected_ocean_track(self):
         catalog = json.loads(CATALOG_PATH.read_text(encoding="utf-8"))
-        by_id = {track["id"]: track for track in catalog}
-        for track_id in ("svs5687", "svs5688"):
-            with self.subTest(track_id=track_id):
-                track = by_id[track_id]
-                self.assertEqual(track["nasa_id"], int(track_id.removeprefix("svs")))
-                self.assertEqual(len(track["features"]), 30)
-                self.assertEqual(track["summary"]["sample_count"], 30)
-                self.assertEqual(track["config"]["track_id"], track_id)
-                self.assertEqual(track["video"], f"/media/{track_id}.mp4")
-                self.assertEqual(track["cover"], f"/media/{track_id}_cover.jpg")
+        self.assertEqual([track["id"] for track in catalog], ["ecco2_sst_flow"])
+        track = catalog[0]
+        self.assertEqual(track["nasa_id"], 3912)
+        self.assertEqual(track["summary"]["sample_count"], len(track["features"]))
+        self.assertTrue(track["video"].startswith("/media/"))
+        self.assertTrue(track["cover"].startswith("/media/"))
+        self.assertTrue(track["features"])
 
     def test_catalog_returns_cards_without_player_data_or_media_urls(self):
         response = self.client.get("/api/tracks")
