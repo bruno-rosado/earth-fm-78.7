@@ -4,12 +4,13 @@ import type { FeatureSample } from "../types";
 
 interface AudioVisualizerProps {
   features: FeatureSample[];
+  duration: number;
   getTime: () => number;
   playing: boolean;
   pattern: ScanPattern;
 }
 
-export default function AudioVisualizer({ features, getTime, playing, pattern }: AudioVisualizerProps) {
+export default function AudioVisualizer({ features, duration, getTime, playing, pattern }: AudioVisualizerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -58,7 +59,7 @@ export default function AudioVisualizer({ features, getTime, playing, pattern }:
         }
       }
 
-      const path = scanPath(time, pattern);
+      const path = scanPath(time, duration, pattern);
       context.beginPath();
       context.strokeStyle = playing ? "rgba(248, 219, 169, .95)" : "rgba(248, 219, 169, .45)";
       context.lineWidth = 2;
@@ -90,7 +91,7 @@ export default function AudioVisualizer({ features, getTime, playing, pattern }:
 
     frame = window.requestAnimationFrame(draw);
     return () => window.cancelAnimationFrame(frame);
-  }, [features, getTime, playing, pattern]);
+  }, [features, duration, getTime, playing, pattern]);
 
   return <canvas className="data-visualizer" ref={canvasRef} role="img" aria-label="Animated map of the track's measured ocean data" />;
 }

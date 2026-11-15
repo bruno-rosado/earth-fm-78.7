@@ -46,7 +46,7 @@ export default function PlayerPanel({ track, videoRef, player, onClose }: Player
     setTime(value);
     player.seek(value);
   };
-  const scan = scanPath(time, player.scanPattern);
+  const scan = scanPath(time, track.duration, player.scanPattern);
 
   return (
     <section className="player-panel" aria-label={`Now playing ${track.title}`}>
@@ -123,6 +123,7 @@ export default function PlayerPanel({ track, videoRef, player, onClose }: Player
           </label>
           <AudioVisualizer
             features={track.features}
+            duration={track.duration}
             getTime={player.getTime}
             playing={player.playing}
             pattern={player.scanPattern}

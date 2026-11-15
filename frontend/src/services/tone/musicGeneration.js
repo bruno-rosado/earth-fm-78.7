@@ -173,7 +173,7 @@ export async function createPlayback({
   let ended = false;
   let disposed = false;
   let videoFailed = !video;
-  const getTime = () => Math.min(duration, Math.max(0, transport.seconds));
+  const getTime = () => ended ? duration : Math.min(duration, Math.max(0, transport.seconds));
 
   const silenceNotes = () => {
     voices.forEach((voice) => voice.synth.releaseAll());

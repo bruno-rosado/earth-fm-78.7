@@ -36,6 +36,7 @@ maps to pitch, latitude to tone color and harmony, current speed to rhythm and
 loudness, and current direction to stereo position. The scanner can sweep
 horizontally, rotate clockwise or counterclockwise, or expand and contract
 from the center; its path controls both the visual markers and the sonification.
+Each scan completes one pass over the track's full duration.
 In the player, choose image brightness or image color as the source for pitch.
 Both are whole-frame measurements, interpolated over time, rather than values
 at the scan position. Pitch is scaled to the track's image-data range when it

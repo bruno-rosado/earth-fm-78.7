@@ -10,8 +10,6 @@ const SILENT_BELOW = 0.08; // presence under this is land or empty map
 const LEAD_RANGE = 24; // semitones across the image-data range
 const CHORD_LATITUDE_MARGIN = 0.06; // hysteresis so chords don't flicker on a boundary
 
-export const SCAN_PERIOD = 40; // seconds for one full scan of the map
-export const SCAN_START = 0; // map position (0 = 180°W, 0.5 = 0°) at t = 0
 const SCAN_PATTERNS = ["left-to-right", "right-to-left", "clockwise", "counter-clockwise", "outward", "inward"];
 export const DATA_SOURCES = Object.freeze(["brightness", "color"]);
 const COLOR_WARMTH = {
@@ -69,9 +67,12 @@ const smoothstep = (low, high, value) => {
   return x * x * (3 - 2 * x);
 };
 
-export function scanPath(time, pattern = "left-to-right") {
+export function scanPath(time, duration, pattern = "left-to-right") {
   if (!SCAN_PATTERNS.includes(pattern)) throw new Error("Unsupported scan pattern.");
-  const phase = ((SCAN_START + time / SCAN_PERIOD) % 1 + 1) % 1;
+  if (!Number.isFinite(time) || !Number.isFinite(duration) || duration <= 0) {
+    throw new Error("A finite time and positive duration are required for the scan.");
+  }
+  const phase = clamp(time / duration);
   switch (pattern) {
     case "right-to-left":
       return { type: "vertical", position: 1 - phase };
@@ -134,13 +135,13 @@ export function sampleCell(features, time, u, row) {
 const averageCells = (cells) => cells[0].map((_, field) =>
   cells.reduce((sum, cell) => sum + cell[field], 0) / cells.length);
 
-export function sampleScanCell(features, time, row, pattern = "left-to-right", dataSource = "brightness") {
+export function sampleScanCell(features, time, duration, row, pattern = "left-to-right", dataSource = "brightness") {
   const selectedWarmth = sampleDataWarmth(features, time, dataSource);
   const withSelectedWarmth = (cell) => [cell[0], selectedWarmth, cell[2], cell[3]];
   const rows = features[0].grid.length;
   const columns = features[0].grid[row].length;
   const y = (row + 0.5) / rows;
-  const path = scanPath(time, pattern);
+  const path = scanPath(time, duration, pattern);
 
   if (path.type === "vertical") return withSelectedWarmth(sampleCell(features, time, path.position, row));
 
@@ -221,12 +222,12 @@ function normalizer(values, minimumRange) {
 }
 
 // Presence-weighted latitude and ocean coverage under the scan.
-function columnClimate(features, time, pattern) {
+function columnClimate(features, time, duration, pattern) {
   const rows = features[0].grid.length;
   let presence = 0;
   let warmth = 0;
   for (let row = 0; row < rows; row++) {
-    const [p] = sampleScanCell(features, time, row, pattern);
+    const [p] = sampleScanCell(features, time, duration, row, pattern);
     presence += p;
     warmth += p * latitudeLevel(row, rows);
   }
@@ -239,8 +240,8 @@ function createChords(config, features, duration, pattern) {
   const bars = [];
   for (let t = 0; t < duration; t += bar) {
     // Look at the middle of the bar too, so a chord reflects the whole bar.
-    const start = columnClimate(features, t, pattern);
-    const middle = columnClimate(features, Math.min(duration, t + bar / 2), pattern);
+    const start = columnClimate(features, t, duration, pattern);
+    const middle = columnClimate(features, Math.min(duration, t + bar / 2), duration, pattern);
     bars.push({ t, presence: (start.presence + middle.presence) / 2, warmth: (start.warmth + middle.warmth) / 2 });
   }
   const scaleLatitude = normalizer(bars.map((bar) => bar.warmth), 0.01);
@@ -294,7 +295,7 @@ export function chordName(pitchClasses) {
 // `steps` entries of { warmth, presence } evenly spaced from 0 to duration.
 export function scanTimeline(features, duration, steps, pattern = "left-to-right") {
   return Array.from({ length: steps }, (_, i) =>
-    columnClimate(features, (duration * i) / Math.max(1, steps - 1), pattern));
+    columnClimate(features, (duration * i) / Math.max(1, steps - 1), duration, pattern));
 }
 
 export function createMusicEvents(config, features, duration, pattern = "left-to-right", dataSource = "brightness") {
@@ -319,7 +320,7 @@ export function createMusicEvents(config, features, duration, pattern = "left-to
   for (let step = 0; step * interval < duration; step++) {
     const t = step * interval;
     for (let row = 0; row < rows; row++) {
-      const [presence, pitchData, speed, flow] = sampleScanCell(features, t, row, pattern, dataSource);
+      const [presence, pitchData, speed, flow] = sampleScanCell(features, t, duration, row, pattern, dataSource);
       const audible = smoothstep(SILENT_BELOW, 0.3, presence);
       if (audible === 0) continue;
       phase[row] += lerp(...config.density_range, speed) * audible;

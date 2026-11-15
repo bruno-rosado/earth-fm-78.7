@@ -1,7 +1,6 @@
 import type { FeatureSample, MusicConfig } from "../../types";
 
 export const DEFAULT_CONFIG: Omit<MusicConfig, "track_id">;
-export const SCAN_PERIOD: number;
 export const DATA_SOURCES: readonly ["brightness", "color"];
 export type DataSource = (typeof DATA_SOURCES)[number];
 export type ScanPattern =
@@ -15,7 +14,7 @@ export type ScanPath =
   | { type: "vertical"; position: number }
   | { type: "rotating-line"; angle: number }
   | { type: "ring"; radius: number };
-export function scanPath(time: number, pattern?: ScanPattern): ScanPath;
+export function scanPath(time: number, duration: number, pattern?: ScanPattern): ScanPath;
 export function sampleCell(
   features: FeatureSample[],
   time: number,
@@ -25,6 +24,7 @@ export function sampleCell(
 export function sampleScanCell(
   features: FeatureSample[],
   time: number,
+  duration: number,
   row: number,
   pattern?: ScanPattern,
   dataSource?: DataSource,

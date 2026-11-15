@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
-  chordName, createMusicEvents, DATA_SOURCES, scanPath, scanTimeline, DEFAULT_CONFIG, MODES, sampleCell, sampleScanCell, SCAN_PERIOD,
+  chordName, createMusicEvents, DATA_SOURCES, scanPath, scanTimeline, DEFAULT_CONFIG, MODES, sampleCell, sampleScanCell,
 } from "./musicMapping.js";
 
 const samples = JSON.parse(readFileSync(new URL("../../../../backend/data/tracks.json", import.meta.url)))
@@ -15,25 +15,53 @@ function flatGrid(cell, rows = 4, cols = 6) {
 }
 const sample = (t, grid) => ({ t, brightness: 0.2, motion: 0, contrast: 0, color: {}, grid });
 
-test("scan paths start at their expected edges and orientations", () => {
-  assert.deepEqual(scanPath(0), { type: "vertical", position: 0 });
-  assert.ok(scanPath(1).position > scanPath(0).position);
-  assert.ok(Math.abs(scanPath(0).position - scanPath(SCAN_PERIOD).position) < 1e-9);
-  assert.deepEqual(scanPath(0, "right-to-left"), { type: "vertical", position: 1 });
-  assert.deepEqual(scanPath(0, "clockwise"), { type: "rotating-line", angle: 0 });
-  assert.deepEqual(scanPath(SCAN_PERIOD / 4, "clockwise"), {
-    type: "rotating-line",
-    angle: Math.PI / 2,
-  });
-  assert.deepEqual(scanPath(SCAN_PERIOD / 4, "counter-clockwise"), {
-    type: "rotating-line",
-    angle: -Math.PI / 2,
-  });
-  assert.deepEqual(scanPath(0, "outward"), { type: "ring", radius: 0 });
-  assert.deepEqual(scanPath(0, "inward"), { type: "ring", radius: 1 });
-  for (const pattern of ["clockwise", "counter-clockwise", "outward", "inward"]) {
-    assert.ok(sampleScanCell(samples, 4, 0, pattern).every(Number.isFinite));
+test("every scan completes exactly one pass over the track duration", () => {
+  const patterns = [
+    ["left-to-right", "position", 0, 1],
+    ["right-to-left", "position", 1, 0],
+    ["clockwise", "angle", 0, 2 * Math.PI],
+    ["counter-clockwise", "angle", 0, -2 * Math.PI],
+    ["outward", "radius", 0, 1],
+    ["inward", "radius", 1, 0],
+  ];
+  for (const duration of [10, DURATION, 120]) {
+    for (const [pattern, key, start, end] of patterns) {
+      for (const [time, progress] of [[-1, 0], [0, 0], [duration / 4, 0.25], [duration / 2, 0.5], [duration, 1], [duration + 1, 1]]) {
+        const actual = scanPath(time, duration, pattern)[key];
+        assert.ok(Math.abs(actual - (start + (end - start) * progress)) < 1e-9, `${pattern} at ${time}/${duration}`);
+      }
+    }
   }
+  assert.throws(() => scanPath(0, 0));
+  assert.throws(() => scanPath(0, NaN));
+  assert.throws(() => scanPath(NaN, DURATION));
+});
+
+test("audio sampling and timeline use the same duration-scaled scan", () => {
+  const grid = [[
+    [1, 0.5, 1, -1], [1, 0.5, 1, -0.5], [1, 0.5, 1, 0.5], [1, 0.5, 1, 1],
+  ]];
+  const features = [sample(0, grid)];
+  const eventConfig = { ...config, bpm: 120, rhythm_grid: "4n", density_range: [1, 1] };
+  for (const [duration, pattern] of [[10, "left-to-right"], [20, "right-to-left"]]) {
+    const time = duration / 4;
+    const scanned = sampleScanCell(features, time, duration, 0, pattern);
+    const expectedPosition = pattern === "left-to-right" ? 0.25 : 0.75;
+    assert.deepEqual(scanned, [1, 0.2, 1, sampleCell(features, time, expectedPosition, 0)[3]]);
+    const lead = createMusicEvents(eventConfig, features, duration, pattern).leads.find((item) => item.t === time);
+    assert.ok(lead);
+    assert.ok(Math.abs(lead.pan - scanned[3] * 0.8) < 1e-9);
+  }
+  const landAndSea = [sample(0, [[[0, 0.5, 1, 0], [0, 0.5, 1, 0], [1, 0.5, 1, 0], [1, 0.5, 1, 0]]])];
+  const timeline = scanTimeline(landAndSea, 10, 5);
+  assert.equal(timeline[1].presence, 0);
+  assert.equal(timeline[3].presence, 1);
+  const latitudes = [sample(0, [
+    [[1, 0.5, 1, 0], [1, 0.5, 1, 0], [0, 0.5, 1, 0], [0, 0.5, 1, 0]],
+    [[0, 0.5, 1, 0], [0, 0.5, 1, 0], [1, 0.5, 1, 0], [1, 0.5, 1, 0]],
+  ])];
+  assert.equal(createMusicEvents(eventConfig, latitudes, 2).chords[0].warmth, 0.5);
+  assert.equal(createMusicEvents(eventConfig, latitudes, 8).chords[0].warmth, 0.75);
 });
 
 test("each scan pattern changes the generated sonification", () => {
