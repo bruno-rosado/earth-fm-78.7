@@ -11,8 +11,9 @@ application-specific contract and creates supported Tone.js instruments and
 scheduled notes. Gemini does not generate executable player code.
 
 Gemini only picks the *style*. The data-to-sound mapping is fixed, so the music
-always reflects the data. Without a saved config (no key, never generated, or
-stale data) the player uses `DEFAULT_CONFIG` from
+always reflects the data. Each track's default style is generated once by
+`backend/pipeline/build_tracks.py` and stored in `backend/data/tracks.json`. If a
+track has none, the player uses `DEFAULT_CONFIG` from
 `frontend/src/services/tone/musicMapping.js`.
 
 ## Setup
@@ -38,28 +39,25 @@ configurable, with `gemini-3.5-flash-lite` as the default.
 Run the backend and frontend as described in the project README. In the app,
 select the track and press play (or Space). It plays with the default style; to
 change it, open **Style**, describe a mood, and click **Generate**. If music is
-playing, it continues from the same moment with the new style. Saved styles are
-loaded when the track is selected, so playing again does not call Gemini.
+playing, it continues from the same moment with the new style. Vibe changes are
+not saved: reloading returns to the track's default style.
 
-## Endpoints
+## Endpoint
 
-- `POST /api/tracks/{track_id}/music-config`: generate, validate, and save a config.
-  Send `{}` or `{ "prompt": "calm ocean music" }`. Each POST invokes Gemini.
-- `GET /api/tracks/{track_id}/music-config`: retrieve a saved config without a
-  provider call. Returns 404 when none exists, or 409 when the source data changed.
-
-For example, from another terminal:
+`POST /api/music-config`: the UI sends the track metadata, its precomputed
+`summary`, and an optional prompt. The server forwards them to Gemini, validates
+the result, and returns it. Nothing is written to disk; each POST invokes Gemini.
 
 ```bash
-curl -X POST http://localhost:8000/api/tracks/ecco2_sst_flow/music-config \
+curl -X POST http://localhost:8000/api/music-config \
   -H 'Content-Type: application/json' \
-  -d '{"prompt":"Calm, flowing ocean music"}'
+  -d "$(jq -c '{track: (.[0] | {id, title, duration}), summary: .[0].summary, prompt: "Calm, flowing ocean music"}' backend/data/tracks.json)"
 ```
 
 A missing key returns 503, a provider failure or invalid output returns 502/503,
-and a timeout returns 504. Unknown tracks return 404. Provider error messages and
-keys are not returned to the browser. Failed generation preserves a previous
-valid config.
+and a timeout returns 504. A malformed request (bad track ID, oversized summary,
+extra fields) returns 422. Provider error messages and keys are not returned to
+the browser.
 
 ## Output contract
 
@@ -85,7 +83,9 @@ valid config.
 Tempo is 50–120 BPM. `key` is a pitch class (`C`, `F#`, `Bb`, ...). `mode` is
 `major`, `minor`, `dorian`, `mixolydian`, `lydian`, `pentatonic_major`, or
 `pentatonic_minor`. `low_octave` (2–4) is the octave of the southernmost band.
-Instruments are `synth`, `fm_synth`, or `am_synth`. Rhythm grid is `4n`/`8n`/`16n`;
+Instruments are `piano`, `electric_piano`, `bell`, `marimba`, `pluck`, `strings`,
+`organ`, `flute`, `choir`, `synth`, `fm_synth`, or `am_synth`, all built from Tone.js
+synths in `musicGeneration.js` (the prompt describes each one's mood). Rhythm grid is `4n`/`8n`/`16n`;
 note duration adds `2n`. Density, `pad_level` are 0–1, velocity 0.05–0.8, reverb
 0–0.8; ranges are ordered minimum to maximum. Other fields and values are rejected.
 
@@ -113,10 +113,8 @@ and fades so nothing clicks. The Tone.js transport is the master clock: the vide
 follows it by nudging its playback rate (and seeking if it drifts more than
 0.75 s), and the music waits while the video buffers. Mapping is deterministic.
 
-Validated configs are saved atomically in
-`backend/data/music-config/{track_id}.json` with a source-data hash. The file wraps
-the public config in `{ "source_hash": "...", "config": { ... } }`. GET returns
-only the config. MongoDB remains planned; no database is required for this version.
+Default configs live in `backend/data/tracks.json`, written only by the pipeline
+scripts. MongoDB remains planned; no database is required for this version.
 
 ## Verification
 

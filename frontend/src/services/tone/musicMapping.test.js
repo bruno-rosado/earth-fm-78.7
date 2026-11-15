@@ -5,7 +5,8 @@ import {
   chordName, createMusicEvents, scanTimeline, DEFAULT_CONFIG, globeRotationFor, MODES, sampleCell, scanPosition, SCAN_PERIOD,
 } from "./musicMapping.js";
 
-const samples = JSON.parse(readFileSync(new URL("../../../../backend/data/features/ecco2_sst_flow.json", import.meta.url)));
+const samples = JSON.parse(readFileSync(new URL("../../../../backend/data/tracks.json", import.meta.url)))
+  .find((track) => track.id === "ecco2_sst_flow").features;
 const config = { ...DEFAULT_CONFIG, mode: "dorian", key: "D", rhythm_grid: "8n", bpm: 80 };
 const DURATION = 66.7;
 

@@ -58,7 +58,9 @@ Frontend tests: `cd frontend && npm test`.
 ## What's here
 ```
 backend/main.py        backend app setup
-backend/routes/        API endpoints
+backend/routes/        API endpoints: GET /api/tracks, POST /api/music-config
+backend/data/          tracks.json: every track with features, summary, default style
+backend/pipeline/      offline scripts that build tracks.json (extract, build_tracks)
 backend/media/         videos and cover images served at /media
 frontend/src/          React app: 3D scene and Tone.js music engine
 docs/                  HOW_IT_WORKS.md + one step-by-step guide per dev

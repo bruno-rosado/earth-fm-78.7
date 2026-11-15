@@ -22,7 +22,22 @@ Contract:
 - low_octave (2-4) is the octave of the southernmost band; bands climb the scale
   from there, so 3 suits most material.
 - lead_instrument plays the band voices; pad_instrument plays sustained chords.
-  Each is synth, fm_synth, or am_synth (Tone.Synth, Tone.FMSynth, Tone.AMSynth).
+  Pick instruments that clearly express the requested mood; different moods
+  should sound different. Choose from:
+  - piano: acoustic-style, percussive and clear. Reflective, classical, cinematic.
+  - electric_piano: warm, round, mellow. Lo-fi, jazz, chill, late night.
+  - bell: shimmering metallic tones with long ring. Magical, icy, sparkling.
+  - marimba: short wooden mallet hits. Playful, tropical, bouncy, rhythmic.
+  - pluck: bright short plucked notes. Energetic, electronic, driving.
+  - strings: bowed ensemble, swelling. Epic, emotional, dramatic, sweeping.
+  - organ: steady sustained drawbar tone. Sacred, retro, hymn-like, solemn.
+  - flute: breathy soft woodwind. Pastoral, airy, peaceful, natural.
+  - choir: soft wordless voices. Ethereal, haunting, vast, spiritual.
+  - synth: plain soft triangle synth. Neutral, minimal, ambient.
+  - fm_synth: glassy digital tones. Futuristic, sci-fi, crystalline.
+  - am_synth: hollow wobbly tones. Dreamy, underwater, otherworldly.
+  Pad suggestions: strings, choir, organ, synth, am_synth, or electric_piano hold
+  chords well. Percussive voices (marimba, pluck, bell, piano) suit the lead.
 - rhythm_grid (4n, 8n, 16n) is the step size; note_duration (2n, 4n, 8n, 16n) is
   how long each band note rings.
 - density_range [min, max] is the share of steps a band plays, from slow to fast

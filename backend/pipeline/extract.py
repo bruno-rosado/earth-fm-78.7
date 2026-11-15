@@ -234,61 +234,48 @@ def extract_features(video_path):
         capture.release()
 
 
+TRACKS_PATH = Path(__file__).resolve().parents[1] / "data" / "tracks.json"
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("video", type=Path, help="Path to the input video")
-    parser.add_argument(
-        "output", type=Path, help="Path to the {id}.json file in a features directory"
-    )
+    parser.add_argument("track_id", help="Track ID to add or update in data/tracks.json")
     parser.add_argument("--nasa-id", type=int, help="NASA SVS visualization ID")
     parser.add_argument(
         "--features-only",
         action="store_true",
-        help="Only rewrite the feature file; leave tracks.json unchanged",
+        help="Only re-extract features; keep the track's existing metadata",
     )
     args = parser.parse_args()
 
     try:
         if not args.features_only and (args.nasa_id is None or args.nasa_id <= 0):
             raise ValueError("A positive --nasa-id is required unless --features-only is set")
-        if (
-            args.output.parent.name != "features"
-            or args.output.suffix != ".json"
-            or not args.output.stem
-        ):
-            raise ValueError("Feature output must be {id}.json in a features directory")
-        track_id = args.output.stem
-        if args.features_only:
-            features = extract_features(args.video)
-            args.output.parent.mkdir(parents=True, exist_ok=True)
-            args.output.write_text(json.dumps(features, separators=(",", ":")) + "\n", encoding="utf-8")
-            print(f"Wrote {len(features)} samples to {args.output}")
-            return
-        track_output = args.output.parent.parent / "tracks.json"
-        tracks = (
-            json.loads(track_output.read_text(encoding="utf-8"))
-            if track_output.exists()
-            else []
-        )
+        tracks = json.loads(TRACKS_PATH.read_text(encoding="utf-8")) if TRACKS_PATH.exists() else []
         if not isinstance(tracks, list) or any(
             not isinstance(track, dict) or "id" not in track for track in tracks
         ):
             raise ValueError("tracks.json must contain a list of tracks with IDs")
-        track = extract_track(args.nasa_id, args.video, track_id)
+        existing = next((track for track in tracks if track["id"] == args.track_id), None)
+        if args.features_only and existing is None:
+            raise ValueError(f"Track {args.track_id} is not in tracks.json yet")
+        track = existing if args.features_only else {
+            **(existing or {}), **extract_track(args.nasa_id, args.video, args.track_id)
+        }
         features = extract_features(args.video)
-        for index, existing in enumerate(tracks):
-            if existing["id"] == track_id:
-                tracks[index] = track
-                break
-        else:
+        # The summary and default config are refreshed by build_tracks.py.
+        track = {**track, "features": features}
+        if existing is None:
             tracks.append(track)
-        args.output.parent.mkdir(parents=True, exist_ok=True)
-        args.output.write_text(json.dumps(features, separators=(",", ":")) + "\n", encoding="utf-8")
-        track_output.write_text(json.dumps(tracks, indent=2) + "\n", encoding="utf-8")
+        else:
+            tracks[tracks.index(existing)] = track
+        TRACKS_PATH.parent.mkdir(parents=True, exist_ok=True)
+        TRACKS_PATH.write_text(json.dumps(tracks, separators=(",", ":")) + "\n", encoding="utf-8")
     except (ValueError, OSError, cv2.error) as error:
         parser.exit(1, f"Error: {error}\n")
-    print(f"Wrote {len(features)} samples to {args.output}")
-    print(f"Wrote track metadata to {track_output}")
+    print(f"Wrote {len(features)} samples for {args.track_id} to {TRACKS_PATH}")
+    print("Next: python -m backend.pipeline.build_tracks")
 
 
 if __name__ == "__main__":

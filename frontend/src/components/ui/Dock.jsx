@@ -5,10 +5,10 @@ import { sonification } from "../../services/tone/sonificationState";
 import useAnimationFrame from "./useAnimationFrame";
 
 const styleLabel = (config) => `${config.key} ${config.mode.replaceAll("_", " ")} · ${config.bpm} BPM`;
-const SOURCE_TEXT = { generated: "styled by Gemini", default: "default style", stale: "default style (data changed)" };
+const SOURCE_TEXT = { generated: "styled by Gemini", vibe: "your vibe", default: "default style" };
 
 export default function Dock({ track, player, onClose }) {
-  const { config, configSource, ready, starting, playing, loading, generating, volume, error, notice } = player;
+  const { config, configSource, ready, starting, playing, generating, volume, error, notice } = player;
   const [styleOpen, setStyleOpen] = useState(false);
   const [prompt, setPrompt] = useState("");
   const [muted, setMuted] = useState(null); // volume before muting
@@ -48,7 +48,7 @@ export default function Dock({ track, player, onClose }) {
           <div className="dock-meta">
             <div className="dock-title" title={track.title}>{track.title}</div>
             <div className="dock-subtitle">
-              {loading ? "Loading data…" : config ? `${styleLabel(config)} · ${SOURCE_TEXT[configSource]}` : "NASA Scientific Visualization Studio"}
+              {config ? `${styleLabel(config)} · ${SOURCE_TEXT[configSource]}` : "NASA Scientific Visualization Studio"}
             </div>
           </div>
         </div>

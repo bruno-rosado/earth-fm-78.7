@@ -140,3 +140,18 @@ still need a manual browser check.
 - Gemini now generates the separate music config used with the original timed
   features. Configs currently use local JSON storage. MongoDB, additional player
   controls, and precise pause/seek synchronization remain future work.
+
+
+## Restructure: one tracks file, stateless vibe changes
+
+Supersedes the per-track files and endpoints above.
+
+- `backend/data/tracks.json` now holds every track with `features`, `summary`,
+  and default `config`. The `features/`, `music-config/`, and `tracks/` folders
+  were removed.
+- `GET /api/tracks` returns that file. `POST /api/music-config` takes
+  `{track, summary, prompt}`, calls Gemini, and returns a config without saving.
+- Removed `GET /api/tracks/{id}`, `/features`, `/music-config`, the source hash,
+  and `/api/hello`.
+- `pipeline/extract.py <video> <id>` writes features into `tracks.json`;
+  `pipeline/build_tracks.py` adds summaries and generates missing defaults.
