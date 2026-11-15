@@ -1,5 +1,4 @@
-import json
-from pathlib import Path
+"""Discover NASA SVS videos and prepare a local sonification library."""
 
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import FileResponse
@@ -10,8 +9,7 @@ if __package__ == "routes":
 else:
     from ..services import imports, nasa
 
-DATA_DIR = Path(__file__).resolve().parents[1] / "data"
-router = APIRouter(tags=["search"])
+router = APIRouter(tags=["NASA library"])
 
 
 class ImportRequest(BaseModel):
@@ -19,45 +17,41 @@ class ImportRequest(BaseModel):
     nasa_id: int = Field(gt=0, lt=10_000_000)
 
 
-def _annotate(cards):
-    """Mark cards whose visualization is already a track."""
-    by_nasa_id = {track.get("nasa_id"): track for track in imports.read_tracks()}
-    return [{**card, "track": by_nasa_id.get(card["nasa_id"])} for card in cards]
-
-
 @router.get("/search")
-def search(q: str = Query("", max_length=120), limit: int = Query(12, ge=1, le=24)):
+def search(q: str = Query("", max_length=120), limit: int = Query(8, ge=1, le=24)):
     try:
-        return _annotate(nasa.search(q, limit))
+        by_nasa_id = {track.get("nasa_id"): track for track in imports.read_tracks()}
+        return [
+            {**card, "track": (
+                {key: track[key] for key in imports.PUBLIC_FIELDS if key in track}
+                if (track := by_nasa_id.get(card["nasa_id"])) else None
+            )}
+            for card in nasa.search(q, limit)
+        ]
     except nasa.NasaError as error:
         raise HTTPException(status_code=error.status_code, detail=str(error)) from None
-
-
-@router.get("/recommendations")
-def recommendations():
-    ids = json.loads((DATA_DIR / "recommendations.json").read_text(encoding="utf-8"))
-    try:
-        found = {card["nasa_id"]: card for card in nasa.cards(ids)}
-    except nasa.NasaError as error:
-        raise HTTPException(status_code=error.status_code, detail=str(error)) from None
-    return _annotate([found[i] for i in ids if i in found])
 
 
 @router.post("/imports", status_code=202)
 def create_import(request: ImportRequest):
-    return imports.start(request.nasa_id)
+    try:
+        return imports.start(request.nasa_id)
+    except imports.ImportFailed as error:
+        raise HTTPException(status_code=429, detail=str(error)) from None
 
 
 @router.get("/imports/{job_id}")
 def get_import(job_id: str):
     job = imports.get_job(job_id)
     if job is None:
-        raise HTTPException(status_code=404, detail="Import not found")
+        raise HTTPException(status_code=404, detail="Import not found. Search for the video to try again.")
     return job
 
 
 @router.get("/thumbs/{nasa_id}.jpg")
 def thumbnail(nasa_id: int):
+    if not 0 < nasa_id < 10_000_000:
+        raise HTTPException(status_code=404, detail="Thumbnail not found")
     try:
         path = nasa.thumbnail_file(nasa_id)
     except nasa.NasaError as error:

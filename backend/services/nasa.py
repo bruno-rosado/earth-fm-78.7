@@ -7,6 +7,7 @@ detail page and picking a playable movie plus a thumbnail from it.
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
+from html import unescape
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -20,7 +21,7 @@ TIMEOUT = 20
 CACHE_SECONDS = 600
 # Result types that are videos. Galleries, images, and interactives are skipped.
 VIDEO_TYPES = {"Visualization", "Animation", "Produced Video", "Hyperwall Visual", "B-Roll"}
-MIN_WIDTH = 960  # smallest movie that still looks good wrapped on the globe
+MIN_WIDTH = 960  # readable video without downloading NASA's largest master
 MAX_BYTES = 400 * 1024 * 1024
 EXTENSION_RANK = {"mp4": 0, "m4v": 0, "mov": 1, "webm": 2}
 THUMB_DIR = Path(__file__).resolve().parents[1] / "data" / "thumbs"
@@ -41,8 +42,9 @@ def nasa_url(url):
     if not isinstance(url, str):
         raise NasaError(502, "NASA metadata is missing an asset URL")
     parsed = urlparse(url)
-    if parsed.scheme not in ("http", "https") or parsed.hostname != HOST:
-        raise NasaError(502, f"Unexpected NASA asset URL: {url}")
+    if (parsed.scheme not in ("http", "https") or parsed.hostname != HOST
+            or parsed.username or parsed.password or parsed.port not in (None, 80, 443)):
+        raise NasaError(502, "Unexpected NASA asset URL")
     return parsed._replace(scheme="https").geturl()
 
 
@@ -54,6 +56,10 @@ def _cached(key, compute):
             return hit[1]
     value = compute()
     with _cache_lock:
+        for stale in [key for key, hit in _cache.items() if hit[0] <= now]:
+            del _cache[stale]
+        while len(_cache) >= 128:
+            del _cache[next(iter(_cache))]
         _cache[key] = (now + CACHE_SECONDS, value)
     return value
 
@@ -150,6 +156,9 @@ def card(nasa_id):
 def _plain(text):
     if not isinstance(text, str):
         return ""
+    # SVS appends a double-pipe-separated media inventory after its description.
+    # Keep the science introduction for result cards, the player, and narration.
+    text = text.split("||", 1)[0]
     out, skip = [], False
     for char in text:
         if char == "<":
@@ -158,7 +167,7 @@ def _plain(text):
             skip = False
         elif not skip:
             out.append(char)
-    return " ".join("".join(out).split())[:400]
+    return " ".join(unescape("".join(out)).split())[:400]
 
 
 def cards(nasa_ids):

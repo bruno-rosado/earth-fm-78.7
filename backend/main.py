@@ -4,6 +4,9 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from dotenv import load_dotenv
+
+load_dotenv(Path(__file__).resolve().parent / ".env", override=False)
 
 # Support both `uvicorn backend.main:app` and `cd backend && uvicorn main:app`.
 if __package__:

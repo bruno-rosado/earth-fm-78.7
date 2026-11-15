@@ -1,86 +1,177 @@
-# earth-fm-78.7
+# Earth FM 78.7
 
-Earth Frequencies: a jukebox where each track is a NASA Earth visualization turned into music, playing over a spinning 3D Earth.
+Earth FM 78.7 is a curated jukebox of NASA visualizations. The backend
+serves preprocessed track data and local video assets; a typed React player
+renders the video and a 2D data view while Tone.js sonifies the measurements in
+the browser. Search NASA from the top of the page to download more visualizations
+and prepare their data for the same player. Playback uses a shared local clock.
 
-## Run it (two terminals)
+## Run it
 
-Backend (Python):
-```
+Start the backend:
+
+```bash
 cd backend
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
 .venv/bin/uvicorn main:app --reload --port 8000
 ```
 
-Frontend (React):
-```
+In another terminal, start the frontend:
+
+```bash
 cd frontend
 npm install
 npm run dev
 ```
-Open http://localhost:5173 for the frontend and http://localhost:8000/docs to try the backend API.
 
-## How it sounds
+Open http://localhost:5173. The backend API documentation is at
+http://localhost:8000/docs.
 
-Like NASA's Hearing Hubble, a scan line reads the map as the globe turns: latitude
-sets pitch, sea temperature sets tone color and chords, current speed sets rhythm
-and loudness, and current direction sets stereo pan. Select a track and press play
-(or Space).
+## Listening
 
-The key, mode, tempo, and instruments are computed from each track's data.
-See [backend/MUSIC_CONFIG.md](backend/MUSIC_CONFIG.md) for the mapping and tests.
+Scroll through the cover flow or use its arrows to browse, choose a curated
+record, then press play. The browser loads the selected track's
+metadata and feature timeline, plays its local NASA video, and generates music
+from the same measurements. The selected image attribute (brightness or color)
+maps to pitch, latitude to tone color and harmony, current speed to rhythm and
+loudness, and current direction to stereo position. The scanner can sweep
+horizontally, rotate clockwise or counterclockwise, or expand and contract
+from the center; its path controls both the visual markers and the sonification.
+Each scan completes one pass over the track's full duration.
+In the player, choose image brightness or image color as the source for pitch.
+Both are whole-frame measurements, interpolated over time, rather than values
+at the scan position. Pitch is scaled to the track's image-data range when it
+varies. Latitude sets each voice's filter tone (north is brighter) and the
+presence-weighted mean latitude under the scan selects the chords.
+This changes the frontend mapping without changing the stored music configuration.
 
-## Using the app
+The collection page fetches only album-card metadata. Full track details and
+features are requested when a record is selected; scrolling the collection does
+not make additional API calls. Music configurations are built ahead of time,
+so no AI provider or API key is needed to run the app.
 
-- **Search** the bar at the top (or press `/`) for any NASA Earth visualization:
-  hurricanes, sea ice, wildfire smoke, night lights… Results and recommendations
-  come live from NASA's Scientific Visualization Studio.
-- **Click a result** to add it: the backend downloads the video, re-encodes it
-  (H.264, at most 1280 px wide, 30 fps), analyzes every frame, and the track starts playing as soon as it's ready (10–60 s depending on
-  size). Videos over 400 MB or 8 minutes are refused. Imported tracks stay on your
-  machine (`backend/data/library.json` and `backend/media/svs*`, both ignored by git).
+## Search NASA and add to your library
 
-- **Start listening** (or click a record in the jukebox) opens the track and plays
-  it. The camera glides in on the globe.
-- **Play/pause:** the big button, the Space bar, or click the globe. Drag the
-  timeline to seek; its colors are the sea temperature the scan line will cross,
-  and it dims where the scan crosses land.
-- **On the globe:** the scan line marks the longitude being played; each note
-  ripples out where its data came from; the ring around the planet is the live
-  audio spectrum.
-- **Readout (right):** scan longitude, ocean region, current chord, and a meter per
-  latitude voice colored by water temperature.
-- **Mood:** the key, mode, tempo and instruments are computed from the data (the video's color picks the key, water temperature the mode, current speed the tempo); moods are presets that change the instruments. **✕** or Escape returns
-  to the track list.
+Use **Search NASA** at the top of the page (or press `/` to focus it). Results
+come from NASA's Scientific Visualization Studio API and show downloadable
+videos, previews, and file sizes. Choose **Add to library** to download a video,
+convert it to browser-friendly H.264 MP4, and extract its features. Download,
+conversion, and analysis progress stay visible while you browse. When ready,
+the track appears in the collection; choose **Play track** to open it.
+
+Imported tracks use the current brightness/color mapping and scanner controls,
+with the player's default music style. No NASA or Gemini key is required.
+Repeated imports reuse an existing local track or active job. Search results
+are cached for ten minutes; imported tracks and media persist on this machine
+across restarts in ignored `backend/data/library.json` and `backend/media/svs*`.
+The shipped `tracks.json` is unchanged. A restart interrupts unfinished jobs;
+search for the video and retry. One video is processed at a time, with limits
+of eight minutes and 400 MiB per video. Install the updated backend requirements
+to include `imageio-ffmpeg`, which supplies the conversion binary.
+
+## Accessibility
+
+Use **High contrast** in the header for bright text and stronger outlines. Open
+**Accessibility** for standard, large, or extra-large text, reduced visual motion,
+reading speed, and independent narration volume. Choices persist on this device;
+system contrast/motion preferences are used until you make an explicit choice.
+
+**Read page aloud** and **Explain track description**
+prepare a narration clip only after a click. A matching transcript is shown,
+and music is temporarily quieter while narration speaks. **Stop reading**, choosing
+another track, or closing the player cancels the voice and restores music volume.
+If audio is unsupported, blocked, or fails to start, the written transcript remains.
+No additional API key is needed. The backend uses the installed macOS system voice
+(`say`); Linux servers need `espeak-ng` or `espeak` installed. Other servers retain
+the written transcript. Narration is cached in ignored `backend/data/narration/`
+(up to 16 clips), with up to four audio responses cached in the browser session.
+Restart the backend after adding this endpoint.
+
+Speed and volume update the same audio element's `playbackRate` and `volume`.
+They do not stop, recreate, seek, or reload narration. Pitch is preserved when
+changing speed. The **Read aloud** view
+can be collapsed without stopping speech, and **Stop reading** stays available
+while it is collapsed.
+
+Keyboard checks: Tab from the address bar to the skip link, header, collection,
+and player; Enter/Space activate buttons, arrows adjust sliders, and Escape closes
+settings and returns focus to its button. Selecting a track focuses its heading;
+returning to the collection restores focus to its card. Data values and the sound
+legend supplement the canvas without continuously interrupting a screen reader.
+
+Before release, verify at 200% zoom and a narrow viewport; test saved preferences
+after refresh, speech stop/replacement/failure, and narration while music is playing.
+Test with VoiceOver or NVDA on the target device. These improvements have not been
+certified as full WCAG conformance. References: [W3C keyboard/focus guidance](https://www.w3.org/WAI/WCAG21/Understanding/focus-visible.html)
+and [media playback rate](https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement/playbackRate).
+
+## Google AI Mode explanations with SerpAPI
+
+Below a selected track's NASA source link, click **Ask Google AI Mode**. The
+backend uses SerpAPI's `google_ai_mode` engine to request a short explanation of
+the track, grounded in its title and NASA SVS source. The returned AI answer is
+displayed as readable paragraphs, with up to five returned references in an
+expandable Sources section. It is labeled as AI-generated. Requests happen only
+on click; the explanation can be hidden and reopened without another provider call.
+Answers render Markdown and LaTeX math, including temperature notation such as
+`$20^{\circ}\text{C}$`. The renderer loads only when an answer is shown and also
+formats existing cached answers. Math includes an accessible MathML equivalent;
+raw HTML, unsafe links, and remote Markdown images are disabled.
+
+Once an explanation appears, **Read explanation aloud** uses the existing
+narration system and your saved speed and volume. Markdown link labels and
+temperature notation become spoken text; reading does not call SerpAPI again.
+Long explanations play in consecutive clips with the full transcript available
+in **Read aloud**. **Stop reading** remains available beside **Hide explanation**,
+and hiding the explanation keeps narration playing. Selecting another track or
+closing the player stops it, just like the other read-aloud controls.
+
+Add this to `backend/.env`, then restart the backend:
+
+```dotenv
+SERPAPI_API_KEY=your_serpapi_key_here
+```
+
+The key stays on the server. `backend/.env.example` includes the variable; never
+put the key in a `VITE_` variable. `GET /api/tracks/{id}/search` returns AI explanations
+for known tracks only. Normalized answers are cached for seven days in ignored
+`backend/data/track_search/` and memory, with up to 64 entries. Metadata changes
+invalidate the cache. The cache version and engine distinguish AI answers from
+older regular-search results. Missing credentials, absent answers, and provider
+failures show a readable retry message. AI Mode requests allow up to 60 seconds.
+Tests cover answer parsing, references, missing answers, credentials, and caching.
+Integration follows the [SerpAPI Google AI Mode API](https://serpapi.com/google-ai-mode-api).
+
+## Add a curated visualization
+
+Place a local video and cover in `backend/media/`, add its metadata to
+`backend/data/tracks.json`, and run the feature extraction and build steps
+described in [the track data contract](backend/data/README.md). Optionally set
+`GEMINI_API_KEY` in `backend/.env` to generate a default music style during the
+offline build. The key is never used by the running player.
 
 ## Tests
 
-Backend tests live in `backend/tests/`. Run them from the repository root:
-```
+From the repository root:
+
+```bash
 backend/.venv/bin/python -m unittest discover -s backend/tests -t . -v
+cd frontend
+npm test
+npm run build
 ```
-Frontend tests: `cd frontend && npm test`.
 
-## What's here
+## Project layout
+
+```text
+backend/routes/tracks.py          REST catalog, details, and feature timeline
+backend/pipeline/                 Offline video analysis and track building
+backend/services/music_config.py  Optional offline style generation
+backend/data/tracks.json          Curated track catalog
+backend/media/                    Locally served video and cover assets
+frontend/src/                     TypeScript UI, Canvas 2D visualization, Tone.js player
+docs/HOW_IT_WORKS.md              End-to-end data and playback flow
 ```
-backend/main.py        backend app setup
-backend/routes/        API: tracks, NASA search and imports
-backend/services/      Feature summary, NASA SVS client, import jobs
-backend/data/          tracks.json (shipped) and library.json (imports): every track
-                       with features, summary, default style
-backend/pipeline/      offline scripts that build tracks.json (extract, build_tracks)
-backend/media/         videos and cover images served at /media
-frontend/src/          React app: 3D scene and Tone.js music engine
-docs/                  HOW_IT_WORKS.md + one step-by-step guide per dev
-```
-Start with `docs/HOW_IT_WORKS.md`, then open your `docs/DEVx.md`.
-Add new files only when you need them. Each guide says which ones to create.
 
-## Media files
-
-Place videos and cover images in `backend/media/`. For example,
-`backend/media/clouds.mp4` is available at
-http://localhost:8000/media/clouds.mp4. Use `/media/clouds.mp4` as the video URL
-in track metadata; the frontend development server forwards `/media` to the backend.
-Use local copies: the browser needs same-origin video to texture the globe and
-range requests to seek.
+For the API and data shape, see [backend/data/README.md](backend/data/README.md).

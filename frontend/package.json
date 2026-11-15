@@ -5,19 +5,26 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
-    "test": "node --test src/services/tone/*.test.js"
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test src/services/*.test.js src/services/tone/*.test.js"
   },
   "dependencies": {
-    "@react-three/drei": "^10.7.9",
-    "@react-three/fiber": "^9.8.2",
+    "katex": "^0.16.47",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
-    "three": "^0.187.0",
-    "tone": "^15.1.22"
+    "react-markdown": "^10.1.0",
+    "remark-parse": "^11.0.0",
+    "rehype-katex": "^7.0.1",
+    "remark-math": "^6.0.0",
+    "tone": "^15.1.22",
+    "unified": "^11.0.5"
   },
   "devDependencies": {
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "^5.9.3",
     "vite": "^5.4.11"
   }
 }

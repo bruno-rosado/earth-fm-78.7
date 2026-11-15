@@ -6,7 +6,10 @@ dist
 docs/*
 tests/*
 /assets/visualizations/ecco2_sst_flow.mp4
+backend/media/ecco2_sst_flow.webmhd.webm
 backend/data/thumbs/*.jpg
-# Imported NASA tracks live only on this machine
+# Local NASA video copies may be large and are managed per machine.
 backend/data/library.json
+backend/data/narration/
+backend/data/track_search/
 backend/media/svs*

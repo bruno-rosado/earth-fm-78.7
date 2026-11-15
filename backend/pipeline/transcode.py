@@ -69,4 +69,7 @@ def transcode(source, destination, duration=0, progress=None):
     finally:
         if process and process.poll() is None:
             process.kill()
+            process.wait()
+        if process and process.stdout:
+            process.stdout.close()
         temporary.unlink(missing_ok=True)

@@ -1,30 +1,23 @@
-# Dev 1: Backend API (Python/FastAPI)
-You make the server that hands out album data. You work in `backend/`.
+# Backend: curated track API
 
-1. **Run the app.** See the README.
-   Done when http://localhost:8000/api/tracks returns the track list.
-2. **Write the fake data with the team.** Create `backend/data/tracks.json`: a list with one track whose `features` hold about 20 time points. Use the shapes from HOW_IT_WORKS.
-   Done when all 4 devs agree on the shapes.
-3. **Add `GET /api/tracks`** in `main.py`. Read `data/tracks.json` and return it.
-   Done when http://localhost:8000/api/tracks shows the list.
-4. **Serve the video and image files.** Add `app.mount("/media", StaticFiles(directory="media"))` and put the files in `backend/media/`.
-   Done when a video plays at http://localhost:8000/media/yourfile.mp4.
-5. **Tell Devs 3 and 4 the URLs.** Then help Dev 2 drop in the real data on Day 3.
-6. **Extra:** use an LLM to pick the music settings (key, tempo, instrument) from the features.
+The backend serves the catalog and local media. It does not search NASA at
+runtime or import videos while the app is running.
 
-FastAPI tutorial: https://fastapi.tiangolo.com/tutorial/first-steps/
+## Routes
 
----
-## Scope
-- **You own:** `backend/main.py`, `backend/data/`, `backend/media/`, `requirements.txt`.
-- **Not yours:** the video-to-numbers script (Dev 2) and anything in `frontend/` (Devs 3 and 4).
+- `GET /api/tracks`: card metadata for all tracks.
+- `GET /api/tracks/{id}`: selected track metadata and default config.
+- `GET /api/tracks/{id}/features`: precomputed feature samples.
+- `/media/{filename}`: local videos and covers.
 
-## Who's blocked by whom
-- **You block Devs 3 and 4** until the fake JSON exists and the URLs are agreed. Until `/api/tracks` works, they can read the fake JSON directly.
-- **You block Dev 2** until the JSON shape is agreed.
-- **You're blocked by Dev 2** only for real data on Day 3. Fake data unblocks everything else.
+Keep the catalog shape in `backend/data/README.md` current. `tracks.json` is the
+only runtime catalog. Add and analyze tracks offline using the instructions
+there; the server only reads the results.
 
-## Most critical to nail down (first 2 hours)
-1. **The exact JSON shape** of a track in `tracks.json`, including its `features`. Commit one example.
-2. **The URL list:** `/api/tracks`, `/media/<file>`.
-3. **Where files live:** `backend/data/` and `backend/media/`.
+Run locally from the repository root:
+
+```bash
+backend/.venv/bin/uvicorn backend.main:app --reload --port 8000
+```
+
+The API docs are available at http://localhost:8000/docs.

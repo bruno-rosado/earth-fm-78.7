@@ -1,44 +1,39 @@
-# Backend: current state
+# Project notes
 
-Notes for anyone (human or agent) picking up the backend. Earlier history is in
-git; this file describes only what is true now.
+Earth FM 78.7 is a curated NASA sonification jukebox. Keep the product
+focused on the album catalog, selected-track playback, local media, and
+precomputed feature data. The frontend is React + TypeScript; playback and the
+2D feature visualizer run in the browser. NASA search and background imports
+let users extend their local library. Do not add a 3D globe or WebSockets.
 
-## Data
+## Data and API
 
-- One object per track holds metadata, `features`, `summary`, and default
-  `config`. `backend/data/tracks.json` is the shipped catalog;
-  `backend/data/library.json` (git-ignored) holds in-app imports in the same shape.
-- There are no per-track feature or music-config files.
-- Contract: `backend/data/README.md`. Style schema: `backend/MUSIC_CONFIG.md`.
+- `backend/data/tracks.json` stores each curated track's metadata, features,
+  summary, and default config.
+- `backend/media/` contains the local video and cover assets served at `/media`.
+- `backend/data/library.json` persists imported tracks in the same shape as the
+  shipped catalog; imported media and library data are ignored by git.
+- `GET /api/search?q=...` searches NASA SVS for downloadable videos.
+- `POST /api/imports` queues a NASA ID for download, conversion, and extraction;
+  `GET /api/imports/{id}` reports progress. No NASA API key is needed.
+- `GET /api/tracks` returns card metadata only.
+- `GET /api/tracks/{id}` returns selected-track metadata, summary, and config.
+- `GET /api/tracks/{id}/features` returns its preprocessed feature timeline.
 
-## Routes (`backend/routes/`, all under `/api`)
-
-| File | Endpoints |
-| --- | --- |
-| `tracks.py` | `GET /tracks` (catalog + library), `DELETE /tracks/{id}` (imports only) |
-| `music_config.py` | `POST /music-config`: `{track, summary, prompt}` → Gemini → config, not saved |
-| `search.py` | NASA search, recommendations, imports, thumbnails |
-
-`backend/main.py` sets up CORS and mounts `/media`. Run from the repo root:
-
-```bash
-backend/.venv/bin/uvicorn backend.main:app --reload --port 8000
-```
+The route implementation lives in `backend/routes/tracks.py`; the data shape
+and offline update steps are in `backend/data/README.md`.
 
 ## Services
 
-- `services/music_config.py`: schema, feature summary, Gemini call.
-- `services/nasa.py`: SVS search and picking a playable movie and thumbnail.
-- `services/imports.py`: background import jobs; writes complete track objects
-  to `library.json` and removes their media on delete.
+- `backend/pipeline/extract.py` precomputes video features with OpenCV.
+- `backend/pipeline/build_tracks.py` rebuilds summaries and optional default
+  music configs.
+- `backend/services/music_config.py` validates styles and optionally calls
+  Gemini during offline catalog preparation only.
+- `frontend/src/services/tone/` maps measurements to scheduled Tone.js events
+  and synchronizes playback with the selected video.
 
-## Pipeline (offline)
-
-- `pipeline/extract.py <video> <id>` writes features into `tracks.json`.
-- `pipeline/build_tracks.py` adds summaries and generates missing default configs.
-
-## Not done
-
-- MongoDB persistence (everything is local JSON).
-- An end-to-end import that includes the Gemini default-config step has not
-  been run against the live NASA and Gemini APIs.
+Run backend tests from the repository root with
+`backend/.venv/bin/python -m unittest discover -s backend/tests -t . -v`.
+Run frontend tests and type/build checks from `frontend/` with `npm test` and
+`npm run build`.

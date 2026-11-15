@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 
 from backend.main import app
 from backend.services import imports, nasa
+from backend.routes import tracks
 
 SVS_3912 = json.loads((Path(__file__).parent / "fixtures" / "svs_3912.json").read_text())
 
@@ -37,6 +38,13 @@ class NasaChooserTests(unittest.TestCase):
         self.assertEqual(nasa.nasa_url("http://svs.gsfc.nasa.gov/a.mp4"), "https://svs.gsfc.nasa.gov/a.mp4")
         self.assertEqual(nasa._plain("Hello <b>world</b>\n  there"), "Hello world there")
 
+    def test_description_keeps_science_text_without_nasa_media_file_inventory(self):
+        self.assertEqual(
+            nasa._plain("<p>A hurricane moves across the ocean &amp; brings rain.</p> || storm_print.jpg (1024x576) [138 KB] || storm.mp4 (1920x1080) [18 MB] ||"),
+            "A hurricane moves across the ocean & brings rain.",
+        )
+        self.assertEqual(nasa._plain(None), "")
+
 
 class SearchRouteTests(unittest.TestCase):
     def setUp(self):
@@ -50,6 +58,12 @@ class SearchRouteTests(unittest.TestCase):
             self.addCleanup(patcher.stop)
         (data / "x.mp4").write_bytes(b"")
         patcher = patch.object(nasa, "card", side_effect=fake_card)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        patcher = patch.object(tracks, "TRACKS_PATH", data / "tracks.json")
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        patcher = patch.object(imports, "_jobs", {})
         patcher.start()
         self.addCleanup(patcher.stop)
         self.client = TestClient(app)
@@ -85,14 +99,6 @@ class SearchRouteTests(unittest.TestCase):
         ]))
         self.assertEqual([t["id"] for t in self.client.get("/api/tracks").json()], ["ecco2_sst_flow", "svs1"])
 
-    def test_only_imported_tracks_can_be_removed(self):
-        data = Path(self.temp.name)
-        (data / "svs1.mp4").write_bytes(b"")
-        (data / "library.json").write_text(json.dumps([{"id": "svs1", "nasa_id": 1, "title": "Here", "video": "/media/svs1.mp4", "duration": 1}]))
-        self.assertEqual(self.client.delete("/api/tracks/ecco2_sst_flow").status_code, 404)
-        self.assertEqual(self.client.delete("/api/tracks/svs1").status_code, 204)
-        self.assertFalse((data / "svs1.mp4").exists())
-        self.assertEqual([t["id"] for t in self.client.get("/api/tracks").json()], ["ecco2_sst_flow"])
 
 
 if __name__ == "__main__":

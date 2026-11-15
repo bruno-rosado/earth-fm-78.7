@@ -1,86 +1,63 @@
-# How it all works
+# How it works
 
-## The big picture
-
-Every track is one JSON object with everything the player needs: metadata, timed
-features, and a feature summary. The backend serves those
-objects and the media files; the frontend turns features plus style into Tone.js
-notes in sync with the NASA video on the globe. The music style is derived in the
-browser from each track's summary, so nothing is generated at runtime.
+## Architecture
 
 ```mermaid
-flowchart TD
-    NASA["NASA SVS video + cover"] --> Extract["pipeline/extract.py"]
-    Extract --> Build["pipeline/build_tracks.py<br/>summary"]
-    Build --> Catalog["data/tracks.json (shipped)"]
-    NASA --> Media["backend/media/"]
-
-    Search["In-app search + import"] --> Library["data/library.json (this machine)"]
-    Search --> Media
-
-    Catalog --> Backend["FastAPI backend"]
-    Library --> Backend
-    Media --> Backend
-
-    Backend -->|"GET /api/tracks"| Player["Frontend player"]
-    Backend -->|"GET /media/file"| Player
-    Player -->|"summary"| Style["musicStyle.js<br/>deterministic style"]
-    Style --> Live["Tone.js music + globe video"]
-
-    classDef default fill:#102541,stroke:#294057,color:#a5c7ff;
+flowchart LR
+    Video["NASA visualization"] --> Extract["Offline OpenCV feature extraction"]
+    Extract --> Catalog["Curated JSON catalog"]
+    Catalog --> API["FastAPI REST API"]
+    Media["Local video and cover files"] --> API
+    API --> UI["React + TypeScript album jukebox"]
+    UI --> Player["Tone.js playback + Canvas 2D data view"]
+    Player --> Audio["Generated sound"]
+    Player --> VideoElement["Synchronized video"]
 ```
 
-## The shared data
+The browser does not analyze videos when someone visits the site. OpenCV
+precomputes feature samples during the offline pipeline; the frontend requests
+the catalog once and requests a track's details and features when selected.
+Album browsing is local after that first request. The app uses ordinary REST
+requests and needs no WebSockets.
 
-- **`backend/data/tracks.json`** is the catalog shipped with the repo.
-- **`backend/data/library.json`** (ignored by git) holds tracks imported on this
-  machine, in the same shape.
-- **Media** lives in `backend/media/` and is served at `/media/<filename>`.
-  Imported media is named `svs{nasa_id}.*` and ignored by git.
+## Request and playback flow
 
-Each track has `id`, `title`, `description`, `cover`, `video`, `duration`,
-`nasa_id`, `source`, plus:
+1. The React app calls `GET /api/tracks`. The response contains only album-card
+   metadata and cover URLs; video files and feature grids are not included.
+2. Selecting an album calls `GET /api/tracks/{id}` and
+   `GET /api/tracks/{id}/features`. FastAPI reads the curated JSON catalog.
+3. The browser loads the selected local video from `/media/...` and presents
+   its controls alongside a Canvas 2D view of the measured data.
+4. On Play, Tone.js schedules notes and chords from the selected feature
+   timeline. Its audio transport is the master clock; the video follows it.
+5. Whole-frame brightness or color maps to pitch, latitude to tone color and
+   harmony, current speed to rhythm and loudness, and flow direction to stereo
+   pan. The scan's presence-weighted mean latitude selects the chords.
 
-- `features`: one sample per second with whole-frame `brightness`, `motion`,
-  `color`, `contrast`, and a latitude × longitude `grid` (presence, temperature,
-  current speed, flow direction).
-- `summary`: a compact summary of `features`, that the frontend derives
-  the music style from.
+The Canvas visualizer draws the precomputed latitude/longitude grid and marks
+the column currently being sonified. It is a 2D data display, not a 3D globe.
 
-See [`backend/data/README.md`](../backend/data/README.md) for the exact contract
-and [the music-config guide](../backend/MUSIC_CONFIG.md) for the music mapping.
+## Track data and assets
 
-## Adding a track
+- `backend/data/tracks.json` is the curated catalog. It stores track metadata,
+  precomputed features, a compact summary, and the default music style.
+- `backend/media/` contains the local videos and cover images served by FastAPI.
+  Local hosting supports same-origin playback and seeking.
+- Each feature sample contains whole-frame image measurements and an 8 × 24
+  grid of `[presence, temperature, speed, flow]` values.
 
-**Offline (shipped catalog):**
-1. `pipeline/extract.py <video> <track_id>` writes features into `tracks.json`.
-2. `pipeline/build_tracks.py` recomputes each summary.
+See [the exact contract and routes](../backend/data/README.md).
 
-**In the app (this machine only):**
-1. The search bar calls `GET /api/search?q=…`. The backend queries the SVS API
-   and keeps results with a downloadable movie.
-2. Clicking a card calls `POST /api/imports`. A background worker downloads the
-   movie and thumbnail, extracts features, computes the summary, and appends the track to
-   `library.json`. The frontend polls `GET /api/imports/{job}` for progress.
-3. When the job is done the track list refreshes and the new track plays.
-   Imported tracks can be removed with `DELETE /api/tracks/{id}`.
+## Preparing a track
 
-## Choosing the music style
+Use the offline pipeline to extract measurements from a local video and build
+the summary and default style:
 
-The style (key, mode, tempo, instruments) is derived deterministically in the
-frontend by `frontend/src/services/tone/musicStyle.js` from the track's `summary`,
-so the same track always sounds the same. Moods in the player are presets over
-the same fields. No API key or network call is involved.
+```bash
+backend/.venv/bin/python backend/pipeline/extract.py \
+  backend/media/your-video.mp4 your-track-id --nasa-id 1234
+backend/.venv/bin/python -m backend.pipeline.build_tracks
+```
 
-## What happens when a user plays a track
-
-1. The page calls `GET /api/tracks` to get every track.
-2. The user selects a track; its features and summary are already loaded.
-3. The track's `/media/...` video is wrapped around the globe.
-4. On play, the engine precomputes every note from the features and style, then
-   starts the Tone.js transport and the video together.
-5. The globe turns so the longitude being played faces the viewer. A scan line
-   marks it, a marker on each latitude band pulses when that band plays, and the
-   atmosphere and aurora follow the music's loudness.
-6. Pause, seek, volume, and track changes keep audio and video together; the
-   video follows the audio clock.
+The optional Gemini call happens only in this offline build step. The app uses
+the stored style; it does not call an AI provider during browsing or playback.

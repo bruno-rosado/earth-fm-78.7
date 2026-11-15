@@ -1,9 +1,56 @@
-"""Feature validation and summary: checks a track's features and condenses them
-into the compact `summary` the frontend derives its music style from."""
+import json
 import math
+import os
+from pathlib import Path
+from typing import Annotated, Literal
 
+import httpx2 as httpx
+from dotenv import load_dotenv
+from google import genai
+from google.genai import errors
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
+
+BACKEND_DIR = Path(__file__).resolve().parents[1]
+PROMPT_PATH = BACKEND_DIR / "prompts" / "music_config.txt"
 COLORS = ("red", "yellow", "green", "cyan", "blue", "magenta", "neutral")
+Unit = Annotated[float, Field(ge=0, le=1)]
+Velocity = Annotated[float, Field(ge=0.05, le=0.8)]
+# Must match INSTRUMENTS in frontend/src/services/tone/musicGeneration.js.
+Instrument = Literal[
+    "synth", "fm_synth", "am_synth", "piano", "electric_piano", "bell", "marimba",
+    "pluck", "strings", "organ", "flute", "choir",
+]
 CELL_FIELDS = ("presence", "temperature", "speed", "flow")
+
+
+class MusicConfig(BaseModel):
+    """Musical style for the fixed data-to-sound mapping in the frontend player."""
+
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    schema_version: Literal[2]
+    track_id: str = Field(pattern=r"^[A-Za-z0-9_-]+$")
+    bpm: int = Field(ge=50, le=120)
+    key: str = Field(pattern=r"^[A-G](?:#|b)?$")
+    mode: Literal["major", "minor", "dorian", "mixolydian", "lydian", "pentatonic_major", "pentatonic_minor"]
+    low_octave: int = Field(ge=2, le=4)
+    lead_instrument: Instrument
+    pad_instrument: Instrument
+    rhythm_grid: Literal["4n", "8n", "16n"]
+    note_duration: Literal["2n", "4n", "8n", "16n"]
+    density_range: list[Unit] = Field(min_length=2, max_length=2)
+    velocity_range: list[Velocity] = Field(min_length=2, max_length=2)
+    pad_level: Unit
+    reverb: Annotated[float, Field(ge=0, le=0.8)]
+
+    @model_validator(mode="after")
+    def validate_musical_ranges(self):
+        for values in (self.density_range, self.velocity_range):
+            if values[0] > values[1]:
+                raise ValueError("Ranges must be ordered minimum to maximum")
+        if self.density_range[1] == 0:
+            raise ValueError("Maximum note density must be positive")
+        return self
 
 
 class MusicConfigError(Exception):
@@ -70,3 +117,43 @@ def summarize_features(features):
         })
     summary["latitude_bands"] = bands
     return summary
+
+
+def generate_config(track, summary, preferences=""):
+    """Ask Gemini for a style from track metadata and a feature summary. Writes nothing."""
+    load_dotenv(BACKEND_DIR / ".env", override=False)
+    key = os.getenv("GEMINI_API_KEY", "").strip()
+    if not key:
+        raise MusicConfigError(503, "Set GEMINI_API_KEY in backend/.env and restart the backend.")
+    model = os.getenv("GEMINI_MODEL", "").strip() or "gemini-3.5-flash-lite"
+    schema = MusicConfig.model_json_schema()
+    schema["properties"]["track_id"]["enum"] = [track["id"]]
+    # The full grid is too large to be useful in a prompt; the summary describes it.
+    payload = {"track": track, "summary": summary, "preferences": preferences}
+    try:
+        with genai.Client(api_key=key, http_options={"timeout": 60000}) as client:
+            response = client.interactions.create(
+                model=model,
+                system_instruction=PROMPT_PATH.read_text(encoding="utf-8"),
+                input=json.dumps(payload, allow_nan=False),
+                response_format={"type": "text", "mime_type": "application/json", "schema": schema},
+                store=False,
+                timeout=60,
+                automatic_continuation=False,
+            )
+        if response.status != "completed":
+            raise MusicConfigError(502, "Gemini did not finish the music config. Try generating again.")
+        config = MusicConfig.model_validate_json(response.output_text or "")
+        if config.track_id != track["id"]:
+            raise ValueError("Track ID mismatch")
+    except errors.APIError as error:
+        status = 503 if error.code in (401, 403, 429) else 502
+        raise MusicConfigError(status, "Gemini could not generate a config. Check the backend key, model, and quota.") from None
+    except (httpx.TimeoutException, TimeoutError):
+        raise MusicConfigError(504, "Gemini timed out. Try generating again.") from None
+    except httpx.HTTPError:
+        raise MusicConfigError(502, "Could not reach Gemini. Try generating again.") from None
+    except (ValidationError, ValueError):
+        raise MusicConfigError(502, "Gemini returned an invalid music config. Try generating again.") from None
+
+    return config
