@@ -10,20 +10,21 @@ async function requestJson(url, options = {}) {
   return body;
 }
 
-const trackUrl = (id) => `/api/tracks/${encodeURIComponent(id)}`;
-export const getHello = () => requestJson("/api/hello");
+// Every track with everything the player needs: metadata, features, summary, default config.
 export const getTracks = () => requestJson("/api/tracks");
-export const getTrack = (id, options) => requestJson(trackUrl(id), options);
-export const removeTrack = (id) => fetch(trackUrl(id), { method: "DELETE" }).then((response) => {
+// Vibe change: send the track's metadata and summary (not the features) with the prompt;
+// returns a new style for Tone.js.
+export const generateMusicConfig = (track, prompt, options = {}) => {
+  const { features, summary, config, config_source, ...metadata } = track;
+  return requestJson("/api/music-config", {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ track: metadata, summary, prompt }),
+  });
+};
+export const removeTrack = (id) => fetch(`/api/tracks/${encodeURIComponent(id)}`, { method: "DELETE" }).then((response) => {
   if (!response.ok) throw new Error("Could not remove that track.");
-});
-export const getFeatures = (id, options) => requestJson(`${trackUrl(id)}/features`, options);
-export const getMusicConfig = (id, options) => requestJson(`${trackUrl(id)}/music-config`, options);
-export const generateMusicConfig = (id, prompt, options = {}) => requestJson(`${trackUrl(id)}/music-config`, {
-  ...options,
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ prompt }),
 });
 
 // NASA search and imports. An import downloads a visualization's video, analyzes

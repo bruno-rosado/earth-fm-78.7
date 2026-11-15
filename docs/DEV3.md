@@ -1,7 +1,7 @@
 # Dev 3: Album picker + 3D Earth (React)
 You build what the user sees. You work in `frontend/src/`.
 
-1. **Run the hello world.** See the README.
+1. **Run the app.** See the README.
 2. **Album list.** Create `src/Jukebox.jsx`. Fetch `/api/tracks` and show the cover images in a row. Clicking one calls `onSelect(track)`. Use the fake data until Dev 1's endpoint exists.
    Done when clicking a cover logs the track.
 3. **Lift the selected track into `App.jsx`** with `useState`, so Dev 4's player can use it too.

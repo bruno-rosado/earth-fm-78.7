@@ -1,17 +1,18 @@
 # Track data contract
 
-`tracks.json` is the catalog shipped with the repo: a list of tracks, each with a
-unique `id`, a `title`, `cover` and `video` URLs, a `duration` in seconds, and the
-NASA SVS `nasa_id` and `source` page it came from. There is no music configuration
-in track metadata.
+`tracks.json` is the catalog shipped with the repo: a list of tracks with
+everything the player needs. `library.json` (ignored by git) holds tracks imported
+through the app on this machine, in the same shape. The server reads both;
+`GET /api/tracks` skips any track whose local video file is missing. Each track has:
 
-`library.json` (ignored by git) holds tracks imported through the app on this
-machine, in the same shape. `GET /api/tracks` returns both lists, skipping any
-track whose local video file is missing. Imported media is named `svs{nasa_id}`
-in `../media/` and `features/`, and is ignored by git too.
+- `id`, `title`, `description`, `cover` and `video` URLs, `duration` in seconds,
+  and the NASA SVS `nasa_id` and `source` page it came from.
+- `features`: the sonification data (below).
+- `summary`: a compact summary of `features`, computed by `build_tracks.py`. The
+  UI sends it to Gemini on a vibe change instead of the full features.
+- `config`: the default music style, generated once by Gemini in `build_tracks.py`.
 
-Each track has one feature file at `features/{id}.json`. The file contains a list
-of samples ordered by `t` (seconds from the start of the video), every 1 second.
+`features` is a list of samples ordered by `t` (seconds from the start of the video), every 1 second.
 Each sample has whole-frame features:
 
 - `brightness`: average frame brightness, from 0 to 1.
@@ -41,21 +42,17 @@ The player reads one column at a time (the longitude facing the viewer). See
 
 | Method | URL | Response |
 | --- | --- | --- |
-| GET | `/api/tracks` | List of tracks |
-| GET | `/api/tracks/{track_id}` | One track, or 404 if unknown |
-| DELETE | `/api/tracks/{track_id}` | Remove an imported track and its files; 404 for catalog tracks |
-| GET | `/api/tracks/{track_id}/features` | Feature array, or 404 if the track or its feature file is missing |
-| GET | `/api/tracks/{track_id}/music-config` | Saved validated music settings; 404 if absent, 409 if stale |
-| POST | `/api/tracks/{track_id}/music-config` | Generate music settings with Gemini and save the validated result |
+| GET | `/api/tracks` | Catalog plus imported tracks, each as described above |
+| DELETE | `/api/tracks/{track_id}` | Remove an imported track and its media; 404 for catalog tracks |
+| POST | `/api/music-config` | Vibe change: send `{track, summary, prompt}`; returns a new config. Nothing is saved. |
 | GET | `/api/search?q=…&limit=12` | NASA SVS search results that have a downloadable video, with a `track` field when already imported |
 | GET | `/api/recommendations` | Cards for the IDs in `recommendations.json` |
-| POST | `/api/imports` | `{ "nasa_id": 5665 }` → 202 with a job; the video is downloaded and analyzed in the background |
+| POST | `/api/imports` | `{ "nasa_id": 5665 }` → 202 with a job; the video is downloaded, analyzed, and given a default config in the background |
 | GET | `/api/imports/{job_id}` | Job status: `queued`, `downloading`, `analyzing`, `done` (with `track`), or `error` |
 | GET | `/api/thumbs/{nasa_id}.jpg` | NASA's preview image resized to 640 px and cached in `thumbs/` |
 
-Music settings stay separate from track metadata. See
-[`../MUSIC_CONFIG.md`](../MUSIC_CONFIG.md) for environment setup and the Tone.js
-config contract. Generated records live in `music-config/{track_id}.json`.
+See [`../MUSIC_CONFIG.md`](../MUSIC_CONFIG.md) for environment setup and the
+Tone.js config contract.
 
 The current track is `ecco2_sst_flow`, with 67 samples at 0, 1, ..., 66 seconds.
 Its duration is 66.7 seconds. Its video (a 1280×640 compressed copy of the NASA
@@ -65,32 +62,22 @@ browser can seek them and use them as a WebGL texture. The NASA-hosted MP4 is
 
 The source visualization is [NASA SVS 3912](https://svs.gsfc.nasa.gov/3912/).
 
-## Extracting another track
+## Adding or updating a track
 
-From the repository root:
-
-```bash
-backend/.venv/bin/python backend/pipeline/extract.py \
-  /path/to/ecco2_sst_flow.mp4 \
-  backend/data/features/ecco2_sst_flow.json \
-  --nasa-id 3912
-```
-
-To recompute only the features from a local copy, leaving `tracks.json` alone:
+From the repository root, extract the features into `tracks.json`, then build the
+summary and default config:
 
 ```bash
 backend/.venv/bin/python backend/pipeline/extract.py \
-  backend/media/ecco2_sst_flow.mp4 \
-  backend/data/features/ecco2_sst_flow.json \
-  --features-only
+  /path/to/ecco2_sst_flow.mp4 ecco2_sst_flow --nasa-id 3912
+backend/.venv/bin/python -m backend.pipeline.build_tracks
 ```
 
-Changing features invalidates saved music configs (GET returns 409); the player
-falls back to its default style until a new one is generated.
+To recompute only the features from a local copy, keeping the track's metadata,
+use `extract.py backend/media/ecco2_sst_flow.mp4 ecco2_sst_flow --features-only`.
 
-The feature filename determines the track ID. The extractor writes that feature
-file and adds or replaces the matching entry in `tracks.json`, preserving other
-tracks. It measures duration from the local video rather than from sample times.
-
-The API resolves data paths relative to `backend/routes/tracks.py`, so it works when
-started from either the repository root or the backend directory.
+`build_tracks.py` recomputes every summary and asks Gemini for a default config
+only where one is missing or the features changed. Use `--regenerate <id>` to
+replace a default and `--prompt "..."` to steer it. These pipeline scripts are the
+only things that write `tracks.json`. The extractor measures duration from the
+local video rather than from sample times.

@@ -1,29 +1,18 @@
 from fastapi import APIRouter, HTTPException
 
 if __package__ == "routes":
-    from services.music_config import GenerationRequest, MusicConfig, MusicConfigError, generate_config, read_config
+    from services.music_config import GenerationRequest, MusicConfig, MusicConfigError, generate_config
 else:
-    from ..services.music_config import GenerationRequest, MusicConfig, MusicConfigError, generate_config, read_config
-from .tracks import get_track, get_track_features
+    from ..services.music_config import GenerationRequest, MusicConfig, MusicConfigError, generate_config
 
-router = APIRouter(prefix="/tracks", tags=["music config"])
+router = APIRouter(tags=["music config"])
 
 
-@router.get("/{track_id}/music-config", response_model=MusicConfig)
-def get_music_config(track_id: str):
-    track = get_track(track_id)
-    features = get_track_features(track_id)
+# Vibe change: the UI sends the track, its feature summary, and a prompt. The
+# server forwards them to Gemini and returns the new style. Nothing is saved.
+@router.post("/music-config", response_model=MusicConfig)
+def create_music_config(request: GenerationRequest):
     try:
-        return read_config(track, features)
-    except MusicConfigError as error:
-        raise HTTPException(status_code=error.status_code, detail=str(error)) from None
-
-
-@router.post("/{track_id}/music-config", response_model=MusicConfig)
-def create_music_config(track_id: str, request: GenerationRequest):
-    track = get_track(track_id)
-    features = get_track_features(track_id)
-    try:
-        return generate_config(track, features, request.prompt)
+        return generate_config(request.track.model_dump(), request.summary, request.prompt)
     except MusicConfigError as error:
         raise HTTPException(status_code=error.status_code, detail=str(error)) from None

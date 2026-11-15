@@ -2,22 +2,101 @@ import * as Tone from "tone";
 import { chordName, createMusicEvents, scanPosition } from "./musicMapping";
 import { resetBands, sonification } from "./sonificationState";
 
-const INSTRUMENTS = { synth: Tone.Synth, fm_synth: Tone.FMSynth, am_synth: Tone.AMSynth };
-
-// Soft attacks and long releases keep notes from clicking and let them overlap.
-const LEAD_OPTIONS = {
-  synth: { oscillator: { type: "triangle" }, envelope: { attack: 0.02, decay: 0.4, sustain: 0.25, release: 1.6 } },
-  fm_synth: {
-    harmonicity: 3, modulationIndex: 3.5, oscillator: { type: "sine" }, modulation: { type: "sine" },
-    envelope: { attack: 0.01, decay: 0.8, sustain: 0.1, release: 2.2 },
-    modulationEnvelope: { attack: 0.01, decay: 0.5, sustain: 0.2, release: 1.5 },
+// Instrument palette. Gemini picks one for the lead (band voices) and one for the
+// pad (sustained chords). Each is built from Tone.js synths; no samples to load.
+// `lead` options shape short notes; `pad` options shape long held chords.
+// `trim` (dB) evens out loudness between bright and soft instruments.
+const env = (attack, decay, sustain, release) => ({ attack, decay, sustain, release });
+const INSTRUMENTS = {
+  synth: {
+    voice: Tone.Synth,
+    lead: { oscillator: { type: "triangle" }, envelope: env(0.02, 0.4, 0.25, 1.6) },
+    pad: { oscillator: { type: "fattriangle", count: 3, spread: 18 }, envelope: env(1.4, 0.6, 0.8, 3.5) },
   },
-  am_synth: { harmonicity: 2, envelope: { attack: 0.03, decay: 0.5, sustain: 0.35, release: 1.8 } },
-};
-const PAD_OPTIONS = {
-  synth: { oscillator: { type: "fattriangle", count: 3, spread: 18 }, envelope: { attack: 1.4, decay: 0.6, sustain: 0.8, release: 3.5 } },
-  fm_synth: { harmonicity: 1, modulationIndex: 1.2, envelope: { attack: 1.2, decay: 0.8, sustain: 0.8, release: 3.5 } },
-  am_synth: { harmonicity: 1.5, oscillator: { type: "sine" }, envelope: { attack: 1.6, decay: 0.6, sustain: 0.9, release: 4 } },
+  fm_synth: {
+    voice: Tone.FMSynth,
+    lead: {
+      harmonicity: 3, modulationIndex: 3.5, oscillator: { type: "sine" }, modulation: { type: "sine" },
+      envelope: env(0.01, 0.8, 0.1, 2.2), modulationEnvelope: env(0.01, 0.5, 0.2, 1.5),
+    },
+    pad: { harmonicity: 1, modulationIndex: 1.2, envelope: env(1.2, 0.8, 0.8, 3.5) },
+  },
+  am_synth: {
+    voice: Tone.AMSynth,
+    lead: { harmonicity: 2, envelope: env(0.03, 0.5, 0.35, 1.8) },
+    pad: { harmonicity: 1.5, oscillator: { type: "sine" }, envelope: env(1.6, 0.6, 0.9, 4) },
+  },
+  piano: {
+    voice: Tone.FMSynth,
+    lead: {
+      harmonicity: 2, modulationIndex: 1.6, oscillator: { type: "triangle" }, modulation: { type: "sine" },
+      envelope: env(0.005, 1.4, 0.05, 1.2), modulationEnvelope: env(0.005, 0.6, 0, 0.8),
+    },
+    pad: {
+      harmonicity: 2, modulationIndex: 1, oscillator: { type: "triangle" },
+      envelope: env(0.01, 2.5, 0.3, 2.5), modulationEnvelope: env(0.01, 1, 0.1, 1),
+    },
+  },
+  electric_piano: {
+    voice: Tone.FMSynth,
+    lead: {
+      harmonicity: 1, modulationIndex: 6, oscillator: { type: "sine" }, modulation: { type: "sine" },
+      envelope: env(0.005, 1.2, 0.15, 1.5), modulationEnvelope: env(0.005, 0.3, 0, 0.5),
+    },
+    pad: {
+      harmonicity: 1, modulationIndex: 3, oscillator: { type: "sine" },
+      envelope: env(0.02, 2, 0.4, 3), modulationEnvelope: env(0.02, 0.8, 0.1, 1),
+    },
+  },
+  bell: {
+    trim: -4, // dB; dense/bright tone, so quieter
+    voice: Tone.FMSynth,
+    lead: {
+      harmonicity: 5.07, modulationIndex: 12, oscillator: { type: "sine" }, modulation: { type: "sine" },
+      envelope: env(0.001, 2.5, 0, 3), modulationEnvelope: env(0.001, 1.5, 0, 2),
+    },
+    pad: {
+      harmonicity: 3.5, modulationIndex: 4, oscillator: { type: "sine" },
+      envelope: env(0.3, 3, 0.4, 5), modulationEnvelope: env(0.3, 2, 0.2, 3),
+    },
+  },
+  marimba: {
+    voice: Tone.FMSynth,
+    lead: {
+      harmonicity: 4, modulationIndex: 2, oscillator: { type: "sine" }, modulation: { type: "sine" },
+      envelope: env(0.001, 0.45, 0, 0.4), modulationEnvelope: env(0.001, 0.1, 0, 0.1),
+    },
+    pad: { oscillator: { type: "sine" }, envelope: env(0.01, 1.2, 0.2, 1.5) },
+  },
+  pluck: {
+    trim: -5, // dB; dense/bright tone, so quieter
+    voice: Tone.Synth,
+    lead: { oscillator: { type: "fatsawtooth", count: 2, spread: 10 }, envelope: env(0.002, 0.25, 0, 0.4) },
+    pad: { oscillator: { type: "fatsawtooth", count: 3, spread: 20 }, envelope: env(0.01, 0.8, 0.3, 1.2) },
+  },
+  strings: {
+    trim: -5, // dB; dense/bright tone, so quieter
+    voice: Tone.Synth,
+    lead: { oscillator: { type: "fatsawtooth", count: 3, spread: 25 }, envelope: env(0.25, 0.5, 0.7, 1.8) },
+    pad: { oscillator: { type: "fatsawtooth", count: 5, spread: 35 }, envelope: env(2, 1, 0.9, 4) },
+  },
+  organ: {
+    trim: -4, // dB; dense/bright tone, so quieter
+    voice: Tone.Synth,
+    lead: { oscillator: { type: "custom", partials: [1, 0.6, 0.4, 0.25, 0.15, 0.1] }, envelope: env(0.01, 0.1, 0.9, 0.3) },
+    pad: { oscillator: { type: "custom", partials: [1, 0.5, 0.3, 0.2] }, envelope: env(0.2, 0.3, 1, 1.2) },
+  },
+  flute: {
+    voice: Tone.AMSynth,
+    lead: { harmonicity: 1, oscillator: { type: "sine" }, modulation: { type: "triangle" }, envelope: env(0.08, 0.3, 0.6, 0.9) },
+    pad: { harmonicity: 1, oscillator: { type: "sine" }, envelope: env(1, 0.5, 0.8, 2.5) },
+  },
+  choir: {
+    trim: -2, // dB; dense/bright tone, so quieter
+    voice: Tone.Synth,
+    lead: { oscillator: { type: "fatsine", count: 4, spread: 30 }, envelope: env(0.3, 0.4, 0.7, 2) },
+    pad: { oscillator: { type: "fatsine", count: 6, spread: 40 }, envelope: env(2.5, 1, 0.9, 5) },
+  },
 };
 const FADE_IN = 0.6;
 const TAIL = 3; // seconds of reverb tail after the track ends
@@ -27,11 +106,16 @@ const midi = (note) => Tone.Frequency(note, "midi").toFrequency();
 
 // Builds the instruments and schedules a whole track on the Tone transport.
 // The transport is the master clock; the video follows it.
+// Overall loudness boost in dB. Raise for louder, lower if it sounds squashed.
+const MAKEUP_DB = 8;
+
+export const INSTRUMENT_NAMES = Object.keys(INSTRUMENTS);
+
 export async function createPlayback({ config, features, duration, video, onEnded, onVideoError }) {
   await Tone.start();
-  const leadVoice = INSTRUMENTS[config.lead_instrument];
-  const padVoice = INSTRUMENTS[config.pad_instrument];
-  if (!leadVoice || !padVoice) throw new Error("Unsupported instrument in music config.");
+  const leadInstrument = INSTRUMENTS[config.lead_instrument];
+  const padInstrument = INSTRUMENTS[config.pad_instrument];
+  if (!leadInstrument || !padInstrument) throw new Error("Unsupported instrument in music config.");
   const events = createMusicEvents(config, features, duration);
 
   const transport = Tone.getTransport();
@@ -40,10 +124,12 @@ export async function createPlayback({ config, features, duration, video, onEnde
   transport.bpm.value = config.bpm;
   transport.seconds = 0;
 
-  // Mix: leads -> delay -> reverb -> compressor -> limiter -> master -> speakers.
+  // Mix: leads -> delay -> reverb -> compressor -> makeup -> limiter -> master -> speakers.
+  // Makeup gain raises overall loudness; the limiter after it stops clipping.
   const master = new Tone.Gain(0).toDestination();
   const limiter = new Tone.Limiter(-1).connect(master);
-  const compressor = new Tone.Compressor({ threshold: -22, ratio: 3, attack: 0.03, release: 0.25 }).connect(limiter);
+  const makeup = new Tone.Gain(MAKEUP_DB, "decibels").connect(limiter);
+  const compressor = new Tone.Compressor({ threshold: -22, ratio: 3, attack: 0.03, release: 0.25 }).connect(makeup);
   const reverb = new Tone.Reverb({ decay: 7, preDelay: 0.03, wet: config.reverb }).connect(compressor);
   const delay = new Tone.FeedbackDelay({ delayTime: "4n.", feedback: 0.22, wet: 0.16 }).connect(reverb);
   const meter = new Tone.Meter({ smoothing: 0.85, normalRange: true });
@@ -56,19 +142,19 @@ export async function createPlayback({ config, features, duration, video, onEnde
   const voices = Array.from({ length: events.rows }, () => {
     const panner = new Tone.Panner(0).connect(delay);
     const filter = new Tone.Filter({ frequency: 1500, type: "lowpass", rolloff: -12 }).connect(panner);
-    const synth = new Tone.PolySynth(leadVoice, { ...LEAD_OPTIONS[config.lead_instrument], volume: -11 }).connect(filter);
+    const synth = new Tone.PolySynth(leadInstrument.voice, { ...leadInstrument.lead, volume: -10 + (leadInstrument.trim ?? 0) }).connect(filter);
     synth.maxPolyphony = 4;
     return { synth, filter, panner };
   });
   const padFilter = new Tone.Filter({ frequency: 900, type: "lowpass", rolloff: -24 }).connect(reverb);
-  const pad = new Tone.PolySynth(padVoice, { ...PAD_OPTIONS[config.pad_instrument], volume: -15 }).connect(padFilter);
+  const pad = new Tone.PolySynth(padInstrument.voice, { ...padInstrument.pad, volume: -14 + (padInstrument.trim ?? 0) }).connect(padFilter);
   pad.maxPolyphony = 8;
   const bass = new Tone.MonoSynth({
-    oscillator: { type: "sine" }, volume: -10,
+    oscillator: { type: "sine" }, volume: -9,
     envelope: { attack: 0.5, decay: 0.4, sustain: 0.85, release: 2.5 },
     filterEnvelope: { attack: 0.5, baseFrequency: 140, octaves: 1.5, release: 2 },
   }).connect(compressor);
-  const nodes = [master, limiter, compressor, reverb, delay, meter, fft, padFilter, pad, bass,
+  const nodes = [master, limiter, makeup, compressor, reverb, delay, meter, fft, padFilter, pad, bass,
     ...voices.flatMap((voice) => [voice.synth, voice.filter, voice.panner])];
 
   resetBands(events.rows);

@@ -2,148 +2,90 @@
 
 ## The big picture
 
-The backend serves track metadata, timed features, media files, and validated
-music configs generated with Gemini. The frontend combines the config and raw
-features to schedule Tone.js notes. MongoDB remains planned; configs currently
-live in local JSON files. Dashed boxes and arrows mark planned database work.
+Every track is one JSON object with everything the player needs: metadata, timed
+features, a feature summary, and a default music style. The backend serves those
+objects and the media files; the frontend turns features plus style into Tone.js
+notes in sync with the NASA video on the globe. Gemini is called only offline (to
+make a default style) or when the user asks for a new vibe.
 
 ```mermaid
 flowchart TD
-    NASA["NASA Earth video + cover image"] --> Extract["Dev 2: feature extraction"]
-    Extract --> Tracks["tracks.json"]
-    Extract --> Features["features/{track_id}.json"]
+    NASA["NASA SVS video + cover"] --> Extract["pipeline/extract.py"]
+    Extract --> Build["pipeline/build_tracks.py<br/>summary + Gemini default config"]
+    Build --> Catalog["data/tracks.json (shipped)"]
     NASA --> Media["backend/media/"]
 
-    Tracks --> Backend["Dev 1: FastAPI backend"]
-    Features --> Backend
+    Search["In-app search + import"] --> Library["data/library.json (this machine)"]
+    Search --> Media
+
+    Catalog --> Backend["FastAPI backend"]
+    Library --> Backend
     Media --> Backend
 
-    subgraph Generation["Generate and validate music settings"]
-        Summary["Track + complete features + summary + preferences"] -->|"Structured JSON API call"| LLM["Gemini API"]
-        LLM --> Config["Validate Tone.js music-config schema"]
-        Config --> Saved["Save music-config/track_id.json"]
-    end
-
-    Backend -->|"POST /api/tracks/track_id/music-config"| Summary
-    Saved -.-> Mongo["MongoDB: planned"]
-
-    subgraph Frontend["Frontend responsibilities: Devs 3 and 4"]
-        Picker["Dev 3: track picker + selectedTrack"]
-        Earth["Dev 3: 3D Earth + NASA video"]
-        Engine["Dev 4: data-to-music engine"]
-        Tone["Tone.js"]
-        Live["Live music + NASA visualization"]
-        Picker --> Earth
-        Picker --> Engine
-        Engine --> Tone
-        Tone --> Live
-        Earth --> Live
-    end
-
-    Backend -->|"GET /api/tracks and /api/tracks/{track_id}"| Picker
-    Backend -->|"GET /api/tracks/{track_id}/features"| Engine
-    Backend -->|"GET /media/filename"| Earth
-    Saved -->|"GET /api/tracks/track_id/music-config via backend"| Engine
+    Backend -->|"GET /api/tracks"| Player["Frontend player"]
+    Backend -->|"GET /media/file"| Player
+    Player -->|"POST /api/music-config<br/>{track, summary, prompt}"| Gemini["Gemini via backend"]
+    Gemini -->|"new config (not saved)"| Player
+    Player --> Live["Tone.js music + globe video"]
 
     classDef default fill:#102541,stroke:#294057,color:#a5c7ff;
-    classDef planned fill:#102541,stroke:#6f90b4,color:#a5c7ff,stroke-dasharray:5 5;
-    class Mongo planned;
 ```
-
-The engine receives both the original timed features and a saved, validated
-music configuration. The summary/configuration flow does not replace
-the per-frame features used during playback.
 
 ## The shared data
 
-1. **`backend/data/tracks.json`** contains a list of tracks. Each track has `id`,
-   `title`, `cover`, `video`, and `duration` in seconds. It contains
-   metadata only; music settings are kept separate.
-2. **`backend/data/features/{track_id}.json`** contains a time-ordered array of
-   samples, one per second. Each sample has `t`, whole-frame `brightness`,
-   `motion`, `color`, and `contrast`, plus a latitude × longitude `grid` whose
-   cells hold presence, temperature, current speed, and flow direction.
-3. **Media files** live in `backend/media/` and are served at `/media/<filename>`.
-4. **`backend/data/music-config/{track_id}.json`** stores a validated config and
-   source-data hash. The config contains tempo, a supported instrument, scale
-   key, mode, tempo, instruments, timing, density, velocity, pad level, and reverb. The GET endpoint
-   returns only the public config; MongoDB persistence remains planned.
+- **`backend/data/tracks.json`** is the catalog shipped with the repo.
+- **`backend/data/library.json`** (ignored by git) holds tracks imported on this
+  machine, in the same shape.
+- **Media** lives in `backend/media/` and is served at `/media/<filename>`.
+  Imported media is named `svs{nasa_id}.*` and ignored by git.
 
-Track IDs and feature filenames must match. The real `ecco2_sst_flow` track has
-67 samples at one-second intervals, and its video and cover are served locally. See
-[`backend/data/README.md`](../backend/data/README.md) for the current data contract
-and [`Agent.md`](../Agent.md) for the completed Dev 1 work.
+Each track has `id`, `title`, `description`, `cover`, `video`, `duration`,
+`nasa_id`, `source`, plus:
 
-## Gemini API flow
+- `features`: one sample per second with whole-frame `brightness`, `motion`,
+  `color`, `contrast`, and a latitude × longitude `grid` (presence, temperature,
+  current speed, flow direction).
+- `summary`: a compact summary of `features`, sent to Gemini instead of the
+  full features.
+- `config`: the default music style. If it is missing, the player uses its
+  built-in default, so playback never needs Gemini.
 
-1. The backend reads a track and its timed features and creates a compact feature
-   summary, such as average values and how they change over time.
-2. On an explicit Generate request, the backend calls Gemini with that summary,
-   the track metadata, and optional musical preferences.
-3. The LLM returns a proposed music configuration, separate from track metadata.
-4. The backend validates supported instruments, pitch names, timing, tempo,
-   ranges, and track ID, then atomically saves the accepted result to a local JSON
-   file. Failed requests preserve any previous valid config.
-5. The frontend receives the saved configuration through the music-config GET endpoint.
-   Dev 4's engine combines it with the original timed features to drive Tone.js.
+See [`backend/data/README.md`](../backend/data/README.md) for the exact contract
+and [the music-config guide](../backend/MUSIC_CONFIG.md) for the style schema.
 
-Generation is a separate POST action; selection and playback reuse saved settings.
-The API key lives in `backend/.env` and is never sent to the browser. Missing keys,
-provider failures, and invalid output appear as actionable errors. Changed source
-data requires regeneration. See [the music-config guide](../backend/MUSIC_CONFIG.md)
-for setup, the schema, and endpoint examples. MongoDB persistence is future work.
+## Adding a track
 
-## Searching and importing NASA videos
+**Offline (shipped catalog):**
+1. `pipeline/extract.py <video> <track_id>` writes features into `tracks.json`.
+2. `pipeline/build_tracks.py` computes each summary and asks Gemini for a
+   default config where one is missing.
 
-1. The search bar calls `GET /api/search?q=…`. The backend queries the SVS API,
-   fetches each result's detail record in parallel, and keeps the ones with a
-   movie. For each it picks the smallest movie at least 960 px wide (mp4 before
-   webm) and a web-sized still, and reports the file size from a HEAD request.
-2. Clicking a card calls `POST /api/imports`. A single background worker
-   downloads the movie and thumbnail to `backend/media/svs{id}.*`, runs the same
-   feature extractor as the shipped track, and appends the track to
-   `backend/data/library.json`. The frontend polls `GET /api/imports/{job}` and
-   shows progress on the card (or a toast when the panel is closed).
-3. When the job is done the track list is refreshed and the new track plays.
-   Everything downstream (music config, playback, visuals) is unchanged.
+**In the app (this machine only):**
+1. The search bar calls `GET /api/search?q=…`. The backend queries the SVS API
+   and keeps results with a downloadable movie.
+2. Clicking a card calls `POST /api/imports`. A background worker downloads the
+   movie and thumbnail, extracts features, computes the summary, asks Gemini
+   for a default config (falling back to none), and appends the track to
+   `library.json`. The frontend polls `GET /api/imports/{job}` for progress.
+3. When the job is done the track list refreshes and the new track plays.
+   Imported tracks can be removed with `DELETE /api/tracks/{id}`.
+
+## Changing the vibe
+
+The user picks a preset or types a mood. The frontend sends the track metadata,
+its `summary`, and the prompt to `POST /api/music-config`. The backend calls
+Gemini, validates the result against the schema, and returns it. Nothing is
+saved; the API key stays in `backend/.env` and never reaches the browser.
 
 ## What happens when a user plays a track
 
-1. The page calls `GET /api/tracks` to get the track list.
-2. The user selects a track. The frontend loads its features and saved style; with
-   no saved style it uses the built-in default, so playback never needs Gemini.
-3. Dev 3 loads the track's local `/media/...` video and wraps it around the globe.
-4. The user presses play. The engine precomputes every note from the features and
-   style, then starts the Tone.js transport and the video together.
+1. The page calls `GET /api/tracks` to get every track.
+2. The user selects a track; its features and default config are already loaded.
+3. The track's `/media/...` video is wrapped around the globe.
+4. On play, the engine precomputes every note from the features and style, then
+   starts the Tone.js transport and the video together.
 5. The globe turns so the longitude being played faces the viewer. A scan line
    marks it, a marker on each latitude band pulses when that band plays, and the
    atmosphere and aurora follow the music's loudness.
-6. Pause, seek, volume, and track changes keep audio and video together; the video
-   follows the audio clock. See [the music-config guide](../backend/MUSIC_CONFIG.md)
-   for the exact mapping.
-
-## Order of work
-
-| Day | Goal |
-|---|---|
-| 1 | Hello world runs for everyone. Agree on the JSON shapes. Fake example data is in. |
-| 2 | Everyone builds their piece against the fake data. |
-| 3 | Swap in the real NASA track. Make it play end to end. |
-| 4 | Polish, plus planned LLM-generated music configuration, MongoDB persistence, and more tracks. |
-
-Track endpoints, media serving, and real JSON integration are merged. Gemini music
-config generation and playback integration are on `API/gemini-music-config`.
-MongoDB remains separate work.
-
-## Who blocks whom (Day 1 first 2 hours = all together)
-
-```
-Dev 2 (video choice, feature names) ──► Dev 1 (JSON shape + URLs) ──► Dev 3 (App state, videoRef) ──► Dev 4 (play/sync)
-                         └────────────── feature names/ranges ──────────────────────────────────────► Dev 4
-```
-
-**Decide together before splitting up:** (1) the NASA video, (2) the JSON shapes and one fake example, (3) the URLs, (4) `selectedTrack` + `videoRef` in App.jsx, with Dev 4 owning play.
-
-**Music-config contract:** Dev 1 validates the JSON schema and serves saved
-settings; Dev 4's adapter maps its supported values to Tone.js. Keep the backend
-schema, prompt, and frontend adapter aligned when extending instruments or timing.
+6. Pause, seek, volume, and track changes keep audio and video together; the
+   video follows the audio clock.

@@ -59,14 +59,18 @@ format, endpoints, and tests.
 
 Backend tests live in `backend/tests/`. Run them from the repository root:
 ```
-backend/.venv/bin/python -m unittest discover -s backend/tests -v
+backend/.venv/bin/python -m unittest discover -s backend/tests -t . -v
 ```
 Frontend tests: `cd frontend && npm test`.
 
 ## What's here
 ```
 backend/main.py        backend app setup
-backend/routes/        API endpoints
+backend/routes/        API: tracks, music-config, NASA search and imports
+backend/services/      Gemini music config, NASA SVS client, import jobs
+backend/data/          tracks.json (shipped) and library.json (imports): every track
+                       with features, summary, default style
+backend/pipeline/      offline scripts that build tracks.json (extract, build_tracks)
 backend/media/         videos and cover images served at /media
 frontend/src/          React app: 3D scene and Tone.js music engine
 docs/                  HOW_IT_WORKS.md + one step-by-step guide per dev

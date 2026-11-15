@@ -1,10 +1,7 @@
-import hashlib
 import json
 import math
 import os
-import re
 from pathlib import Path
-from tempfile import NamedTemporaryFile
 from typing import Annotated, Literal
 
 import httpx2 as httpx
@@ -14,12 +11,15 @@ from google.genai import errors
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
-CONFIG_DIR = BACKEND_DIR / "data" / "music-config"
 PROMPT_PATH = BACKEND_DIR / "prompts" / "music_config.txt"
 COLORS = ("red", "yellow", "green", "cyan", "blue", "magenta", "neutral")
 Unit = Annotated[float, Field(ge=0, le=1)]
 Velocity = Annotated[float, Field(ge=0.05, le=0.8)]
-Instrument = Literal["synth", "fm_synth", "am_synth"]
+# Must match INSTRUMENTS in frontend/src/services/tone/musicGeneration.js.
+Instrument = Literal[
+    "synth", "fm_synth", "am_synth", "piano", "electric_piano", "bell", "marimba",
+    "pluck", "strings", "organ", "flute", "choir",
+]
 CELL_FIELDS = ("presence", "temperature", "speed", "flow")
 
 
@@ -53,20 +53,35 @@ class MusicConfig(BaseModel):
         return self
 
 
+class TrackInfo(BaseModel):
+    """Track metadata sent for a vibe change (features stay in the browser)."""
+
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(pattern=r"^[A-Za-z0-9_-]+$")
+    title: str = Field(max_length=300)
+    description: str = Field(default="", max_length=2000)
+    duration: float = Field(ge=0)
+
+
 class GenerationRequest(BaseModel):
+    """What the UI sends to change the vibe: the track, its summary, and a prompt."""
+
     model_config = ConfigDict(extra="forbid")
+    track: TrackInfo
+    summary: dict
     prompt: str = Field(default="", max_length=1000)
+
+    @model_validator(mode="after")
+    def limit_summary_size(self):
+        if len(json.dumps(self.summary)) > 20000:
+            raise ValueError("Summary is too large")
+        return self
 
 
 class MusicConfigError(Exception):
     def __init__(self, status_code, message):
         super().__init__(message)
         self.status_code = status_code
-
-
-def source_hash(track, features):
-    content = json.dumps({"track": track, "features": features}, sort_keys=True, allow_nan=False)
-    return hashlib.sha256(content.encode()).hexdigest()
 
 
 def is_unit(value, low=0):
@@ -129,38 +144,12 @@ def summarize_features(features):
     return summary
 
 
-def config_path(track):
-    track_id = track["id"]
-    if not isinstance(track_id, str) or not re.fullmatch(r"[A-Za-z0-9_-]+", track_id):
-        raise MusicConfigError(500, "Track ID is invalid")
-    return CONFIG_DIR / f"{track_id}.json"
-
-
-def read_config(track, features):
-    path = config_path(track)
-    try:
-        record = json.loads(path.read_text(encoding="utf-8"))
-    except FileNotFoundError:
-        raise MusicConfigError(404, "No music config yet. Generate one for this track.") from None
-    except json.JSONDecodeError:
-        raise MusicConfigError(500, "Saved music config is invalid. Generate a new one.") from None
-    try:
-        config = MusicConfig.model_validate(record["config"])
-        if config.track_id != track["id"]:
-            raise ValueError("Track ID mismatch")
-        if record["source_hash"] != source_hash(track, features):
-            raise MusicConfigError(409, "Track data changed. Generate a new music config.")
-    except (KeyError, TypeError, ValueError):
-        raise MusicConfigError(500, "Saved music config is invalid. Generate a new one.") from None
-    return config
-
-
-def generate_config(track, features, preferences=""):
+def generate_config(track, summary, preferences=""):
+    """Ask Gemini for a style from track metadata and a feature summary. Writes nothing."""
     load_dotenv(BACKEND_DIR / ".env", override=False)
     key = os.getenv("GEMINI_API_KEY", "").strip()
     if not key:
         raise MusicConfigError(503, "Set GEMINI_API_KEY in backend/.env and restart the backend.")
-    summary = summarize_features(features)
     model = os.getenv("GEMINI_MODEL", "").strip() or "gemini-3.5-flash-lite"
     schema = MusicConfig.model_json_schema()
     schema["properties"]["track_id"]["enum"] = [track["id"]]
@@ -192,17 +181,4 @@ def generate_config(track, features, preferences=""):
     except (ValidationError, ValueError):
         raise MusicConfigError(502, "Gemini returned an invalid music config. Try generating again.") from None
 
-    path = config_path(track)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    record = {"source_hash": source_hash(track, features), "config": config.model_dump()}
-    temporary = None
-    try:
-        with NamedTemporaryFile(mode="w", encoding="utf-8", dir=path.parent, suffix=".tmp", delete=False) as file:
-            temporary = Path(file.name)
-            json.dump(record, file, indent=2, allow_nan=False)
-            file.write("\n")
-        temporary.replace(path)
-    finally:
-        if temporary is not None:
-            temporary.unlink(missing_ok=True)
     return config

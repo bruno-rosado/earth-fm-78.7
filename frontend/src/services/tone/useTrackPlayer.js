@@ -1,19 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { generateMusicConfig, getFeatures, getMusicConfig } from "../api";
+import { generateMusicConfig } from "../api";
 import { createPlayback } from "./musicGeneration";
 import { DEFAULT_CONFIG } from "./musicMapping";
 import { sonification } from "./sonificationState";
 
 const isTyping = (target) => Boolean(target?.closest?.("input, textarea, select"));
 
-// Loads a track's features and style and owns its playback. The UI reads
+// Takes a track (with its features and default style attached) and owns its playback. The UI reads
 // fast-changing values (time, levels) from `sonification` every frame; React
 // state here only changes on user actions.
 export default function useTrackPlayer(selectedTrack, videoRef, { autoPlay = false } = {}) {
   const [features, setFeatures] = useState(null);
   const [config, setConfig] = useState(null);
   const [configSource, setConfigSource] = useState("default");
-  const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [starting, setStarting] = useState(false);
   const [playing, setPlaying] = useState(false);
@@ -35,7 +34,7 @@ export default function useTrackPlayer(selectedTrack, videoRef, { autoPlay = fal
   }, []);
 
   useEffect(() => {
-    const current = ++revision.current;
+    revision.current++;
     const abort = new AbortController();
     request.current = abort;
     disposePlayback();
@@ -47,29 +46,11 @@ export default function useTrackPlayer(selectedTrack, videoRef, { autoPlay = fal
     setGenerating(false);
     setError("");
     setNotice("");
-    setLoading(Boolean(selectedTrack));
     if (selectedTrack) {
-      Promise.all([
-        getFeatures(selectedTrack.id, { signal: abort.signal }),
-        getMusicConfig(selectedTrack.id, { signal: abort.signal }).then(
-          (recipe) => ({ recipe, source: "generated" }),
-          (failure) => {
-            if (abort.signal.aborted) throw failure;
-            if (failure.status === 409) return { recipe: null, source: "stale" };
-            if (failure.status !== 404) setError(failure.message);
-            return { recipe: null, source: "default" };
-          },
-        ),
-      ]).then(([samples, { recipe, source }]) => {
-        if (revision.current !== current) return;
-        setFeatures(samples);
-        setConfig(recipe ?? { ...DEFAULT_CONFIG, track_id: selectedTrack.id });
-        setConfigSource(source);
-      }).catch((failure) => {
-        if (!abort.signal.aborted) setError(failure.message);
-      }).finally(() => {
-        if (!abort.signal.aborted) setLoading(false);
-      });
+      // The track list already carries the features and default style.
+      setFeatures(selectedTrack.features);
+      setConfig(selectedTrack.config ?? { ...DEFAULT_CONFIG, track_id: selectedTrack.id });
+      setConfigSource(selectedTrack.config ? "generated" : "default");
     }
     return () => {
       revision.current++;
@@ -79,7 +60,7 @@ export default function useTrackPlayer(selectedTrack, videoRef, { autoPlay = fal
     // autoPlay is read once per track selection on purpose.
   }, [selectedTrack, disposePlayback]);
 
-  const ready = Boolean(selectedTrack && features && config && !loading);
+  const ready = Boolean(selectedTrack && features && config);
 
   const play = useCallback(async () => {
     if (!ready || starting) return;
@@ -166,13 +147,13 @@ export default function useTrackPlayer(selectedTrack, videoRef, { autoPlay = fal
     setGenerating(true);
     setError("");
     try {
-      const recipe = await generateMusicConfig(selectedTrack.id, prompt, { signal: abort.signal });
+      const recipe = await generateMusicConfig(selectedTrack, prompt, { signal: abort.signal });
       if (abort.signal.aborted || revision.current !== current) return;
       // Rebuild the instruments with the new style, continuing from the same moment.
       pendingPlay.current = playing;
       disposePlayback();
       setConfig(recipe);
-      setConfigSource("generated");
+      setConfigSource("vibe");
     } catch (failure) {
       if (!abort.signal.aborted) setError(failure.message);
     } finally {
@@ -181,7 +162,7 @@ export default function useTrackPlayer(selectedTrack, videoRef, { autoPlay = fal
   }, [selectedTrack, playing, disposePlayback]);
 
   return {
-    features, config, configSource, duration, loading, generating, starting, playing, ready,
+    features, config, configSource, duration, generating, starting, playing, ready,
     volume, error, notice, play, pause, toggle, seek, setVolume, generate, getTime,
   };
 }
