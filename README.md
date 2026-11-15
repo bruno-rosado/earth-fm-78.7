@@ -1,6 +1,6 @@
-# Earth Frequencies
+# Earth FM 78.7
 
-Earth Frequencies is a curated jukebox of NASA visualizations. The backend
+Earth FM 78.7 is a curated jukebox of NASA visualizations. The backend
 serves preprocessed track data and local video assets; a typed React player
 renders the video and a 2D data view while Tone.js sonifies the measurements in
 the browser. Playback uses a shared local clock, not a WebSocket connection.
@@ -29,7 +29,8 @@ http://localhost:8000/docs.
 
 ## Listening
 
-Choose a curated record, then press play. The browser loads the selected track's
+Scroll through the cover flow or use its arrows to browse, choose a curated
+record, then press play. The browser loads the selected track's
 metadata and feature timeline, plays its local NASA video, and generates music
 from the same measurements. The selected image attribute (brightness or color)
 maps to pitch, latitude to tone color and harmony, current speed to rhythm and

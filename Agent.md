@@ -1,6 +1,6 @@
 # Project notes
 
-Earth Frequencies is a curated NASA sonification jukebox. Keep the product
+Earth FM 78.7 is a curated NASA sonification jukebox. Keep the product
 focused on the album catalog, selected-track playback, local media, and
 precomputed feature data. The frontend is React + TypeScript; playback and the
 2D feature visualizer run in the browser. Do not add a 3D globe, runtime NASA

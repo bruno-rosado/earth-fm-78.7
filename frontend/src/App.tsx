@@ -73,12 +73,12 @@ export default function App() {
   return (
     <main className="app-shell">
       <header className="site-header">
-        <a className="wordmark" href="/" aria-label="Earth Frequencies home" onClick={(event) => {
+        <a className="wordmark" href="/" aria-label="Earth FM 78.7 home" onClick={(event) => {
           event.preventDefault();
           closeTrack();
         }}>
           <span className="wordmark-icon" aria-hidden>EF</span>
-          <span>EARTH <strong>FREQUENCIES</strong></span>
+          <span>EARTH <strong>FM 78.7</strong></span>
         </a>
         <span className="header-note">NASA DATA · GENERATED SOUND</span>
       </header>
@@ -129,7 +129,7 @@ export default function App() {
       )}
 
       <footer className="site-footer">
-        <span>EARTH FREQUENCIES</span>
+        <span>EARTH FM 78.7</span>
         <span>Preprocessed NASA imagery · Sonification in your browser</span>
       </footer>
     </main>
