@@ -11,4 +11,5 @@ backend/data/thumbs/*.jpg
 # Local NASA video copies may be large and are managed per machine.
 backend/data/library.json
 backend/data/narration/
+backend/data/track_search/
 backend/media/svs*
