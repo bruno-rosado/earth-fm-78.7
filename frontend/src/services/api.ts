@@ -1,4 +1,4 @@
-import type { CatalogTrack, FeatureSample, TrackDetails } from "../types";
+import type { CatalogTrack, FeatureSample, TrackDetails, TrackSearchResults } from "../types";
 
 async function requestJson<T>(url: string, signal?: AbortSignal): Promise<T> {
   const response = await fetch(url, { signal });
@@ -23,3 +23,6 @@ export const getTrack = (id: string, signal?: AbortSignal) =>
 
 export const getTrackFeatures = (id: string, signal?: AbortSignal) =>
   requestJson<FeatureSample[]>(`/api/tracks/${encodeURIComponent(id)}/features`, signal);
+
+export const searchTrack = (id: string, signal?: AbortSignal) =>
+  requestJson<TrackSearchResults>(`/api/tracks/${encodeURIComponent(id)}/search`, signal);

@@ -68,3 +68,13 @@ export interface TrackDetails extends CatalogTrack {
 export interface Track extends TrackDetails {
   features: FeatureSample[];
 }
+
+export interface TrackSearchResults {
+  track_id: string;
+  engine: "google_ai_mode";
+  query: string;
+  answer: string;
+  sources: { title: string; url: string; snippet: string; source: string }[];
+  cached: boolean;
+  fetched_at: string;
+}
