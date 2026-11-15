@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPlayback } from "./musicGeneration";
 import { deriveStyle } from "./musicStyle";
 import { sonification } from "./sonificationState";
+import { DEFAULT_MIX, effectiveMix } from "./listeningTools";
 
 const isTyping = (target) => Boolean(target?.closest?.("input, textarea, select"));
 
@@ -16,11 +17,16 @@ export default function useTrackPlayer(selectedTrack, videoRef, { autoPlay = fal
   const [starting, setStarting] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [volume, setVolumeState] = useState(0.8);
+  const volumeRef = useRef(0.8);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [mix, setMix] = useState({ ...DEFAULT_MIX });
+  const [solo, setSoloState] = useState(null);
+  const mixRef = useRef({ ...DEFAULT_MIX });
   const playback = useRef(null);
   const revision = useRef(0);
   const pendingPlay = useRef(false); // play as soon as the track is ready
+  const creating = useRef(null);
   const position = useRef(0); // time to start from when no playback exists yet
   const duration = selectedTrack?.duration ?? 0;
 
@@ -33,6 +39,7 @@ export default function useTrackPlayer(selectedTrack, videoRef, { autoPlay = fal
 
   useEffect(() => {
     revision.current++;
+    creating.current = null;
     disposePlayback();
     position.current = 0;
     pendingPlay.current = Boolean(selectedTrack && autoPlay);
@@ -41,6 +48,7 @@ export default function useTrackPlayer(selectedTrack, videoRef, { autoPlay = fal
     setMoodState("natural");
     setError("");
     setNotice("");
+    setStarting(false);
     if (selectedTrack) {
       // The track list already carries the features and summary.
       setFeatures(selectedTrack.features);
@@ -56,14 +64,16 @@ export default function useTrackPlayer(selectedTrack, videoRef, { autoPlay = fal
   const ready = Boolean(selectedTrack && features && config);
 
   const play = useCallback(async () => {
-    if (!ready || starting) return;
+    if (!ready || creating.current !== null) return;
     const current = revision.current;
+    creating.current = current;
     setError("");
     setStarting(true);
     try {
       if (!playback.current) {
         const created = await createPlayback({
           config, features, duration, video: videoRef?.current,
+          isCurrent: () => revision.current === current,
           onEnded: () => {
             if (revision.current === current) setPlaying(false);
           },
@@ -75,7 +85,8 @@ export default function useTrackPlayer(selectedTrack, videoRef, { autoPlay = fal
           created.dispose();
           return;
         }
-        created.setVolume(volume);
+        created.setVolume(volumeRef.current);
+        created.setMix(mixRef.current);
         created.seek(position.current >= duration - 0.1 ? 0 : position.current);
         playback.current = created;
       }
@@ -84,9 +95,10 @@ export default function useTrackPlayer(selectedTrack, videoRef, { autoPlay = fal
     } catch (failure) {
       if (revision.current === current) setError(failure.message);
     } finally {
+      if (creating.current === current) creating.current = null;
       if (revision.current === current) setStarting(false);
     }
-  }, [ready, starting, config, features, duration, videoRef, volume]);
+  }, [ready, config, features, duration, videoRef]);
 
   const pause = useCallback(() => {
     playback.current?.pause();
@@ -130,6 +142,7 @@ export default function useTrackPlayer(selectedTrack, videoRef, { autoPlay = fal
   }, []);
 
   const setVolume = useCallback((value) => {
+    volumeRef.current = value;
     setVolumeState(value);
     playback.current?.setVolume(value);
   }, []);
@@ -137,14 +150,40 @@ export default function useTrackPlayer(selectedTrack, videoRef, { autoPlay = fal
   // Swap the mood preset; playback continues from the same moment with new instruments.
   const setMood = useCallback((next) => {
     if (!selectedTrack || next === mood) return;
-    pendingPlay.current = playing;
+    pendingPlay.current = playing || starting;
+    revision.current++;
+    creating.current = null;
+    setStarting(false);
     disposePlayback();
     setMoodState(next);
     setConfig(deriveStyle(selectedTrack, next));
-  }, [selectedTrack, mood, playing, disposePlayback]);
+  }, [selectedTrack, mood, playing, starting, disposePlayback]);
+
+  const setLayerLevel = useCallback((id, value) => {
+    if (!(id in DEFAULT_MIX)) return;
+    const next = { ...mix, [id]: Math.max(0, Math.min(1, value)) };
+    setMix(next);
+    mixRef.current = effectiveMix(next, solo);
+    playback.current?.setMix(mixRef.current);
+  }, [mix, solo]);
+
+  const setSolo = useCallback((id) => {
+    const next = solo === id ? null : id;
+    setSoloState(next);
+    mixRef.current = effectiveMix(mix, next);
+    playback.current?.setMix(mixRef.current);
+  }, [mix, solo]);
+
+  const resetMix = useCallback(() => {
+    setMix({ ...DEFAULT_MIX });
+    setSoloState(null);
+    mixRef.current = { ...DEFAULT_MIX };
+    playback.current?.setMix(mixRef.current);
+  }, []);
 
   return {
     features, config, mood, duration, starting, playing, ready,
     volume, error, notice, play, pause, toggle, seek, setVolume, setMood, getTime,
+    mix, solo, setLayerLevel, setSolo, resetMix,
   };
 }

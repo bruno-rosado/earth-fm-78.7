@@ -9,7 +9,7 @@ import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPa
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 
 // Threshold just under 1: only things deliberately brighter than white glow.
-const Effects = ({ strength = 0.9, radius = 0.5, threshold = 0.9 }) => {
+const Effects = ({ strength = 0.55, radius = 0.4, threshold = 1.0 }) => {
     const { gl, scene, camera, size } = useThree();
     const [composer, bloom] = useMemo(() => {
         const effects = new EffectComposer(gl);

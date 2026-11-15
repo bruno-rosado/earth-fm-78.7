@@ -110,15 +110,19 @@ const midi = (note) => Tone.Frequency(note, "midi").toFrequency();
 const MAKEUP_DB = 8;
 
 export const INSTRUMENT_NAMES = Object.keys(INSTRUMENTS);
+let playbackOwner = null;
 
-export async function createPlayback({ config, features, duration, video, onEnded, onVideoError }) {
+export async function createPlayback({ config, features, duration, video, onEnded, onVideoError, isCurrent = () => true }) {
   await Tone.start();
+  if (!isCurrent()) throw new Error("Playback changed while starting.");
   const leadInstrument = INSTRUMENTS[config.lead_instrument];
   const padInstrument = INSTRUMENTS[config.pad_instrument];
   if (!leadInstrument || !padInstrument) throw new Error("Unsupported instrument in music config.");
   const events = createMusicEvents(config, features, duration);
 
   const transport = Tone.getTransport();
+  const owner = Symbol("playback");
+  playbackOwner = owner;
   transport.stop();
   transport.cancel();
   transport.bpm.value = config.bpm;
@@ -131,35 +135,48 @@ export async function createPlayback({ config, features, duration, video, onEnde
   const makeup = new Tone.Gain(MAKEUP_DB, "decibels").connect(limiter);
   const compressor = new Tone.Compressor({ threshold: -22, ratio: 3, attack: 0.03, release: 0.25 }).connect(makeup);
   const reverb = new Tone.Reverb({ decay: 7, preDelay: 0.03, wet: config.reverb }).connect(compressor);
-  const delay = new Tone.FeedbackDelay({ delayTime: "4n.", feedback: 0.22, wet: 0.16 }).connect(reverb);
+  const delay = new Tone.FeedbackDelay({ delayTime: "4n.", maxDelay: 2.5, feedback: 0.22, wet: 0.16 }).connect(reverb);
   const meter = new Tone.Meter({ smoothing: 0.85, normalRange: true });
   const fft = new Tone.FFT({ size: 128, smoothing: 0.8 });
   master.connect(meter);
   master.connect(fft);
   await reverb.ready;
+  if (!isCurrent()) {
+    [master, limiter, makeup, compressor, reverb, delay, meter, fft].forEach((node) => node.dispose());
+    throw new Error("Playback changed while preparing instruments.");
+  }
+
+  // Separate buses let listeners isolate the data voices without rebuilding the
+  // synths or disturbing the shared audio/video clock.
+  const melodyBus = new Tone.Gain(1).connect(delay);
+  const textureBus = new Tone.Gain(1).connect(delay);
+  const padBus = new Tone.Gain(1).connect(reverb);
+  const bassBus = new Tone.Gain(1).connect(compressor);
+  // Pad and bass have different effects routes; both follow the harmony fader.
 
   // The melody: one clear voice, loudest in the mix, with its own tone filter and pan.
-  const melodyPanner = new Tone.Panner(0).connect(delay);
+  const melodyPanner = new Tone.Panner(0).connect(melodyBus);
   const melodyFilter = new Tone.Filter({ frequency: 2000, type: "lowpass", rolloff: -12 }).connect(melodyPanner);
   const melodySynth = new Tone.PolySynth(leadInstrument.voice, { ...leadInstrument.lead, volume: -4 + (leadInstrument.trim ?? 0) }).connect(melodyFilter);
-  melodySynth.maxPolyphony = 4;
+  melodySynth.maxPolyphony = 16; // overlapping releases + grace notes must not steal the melody
   // Texture: one quiet voice per latitude band, each with its own tone filter and pan.
   const voices = Array.from({ length: events.rows }, () => {
-    const panner = new Tone.Panner(0).connect(delay);
+    const panner = new Tone.Panner(0).connect(textureBus);
     const filter = new Tone.Filter({ frequency: 1500, type: "lowpass", rolloff: -12 }).connect(panner);
     const synth = new Tone.PolySynth(leadInstrument.voice, { ...leadInstrument.lead, volume: -17 + (leadInstrument.trim ?? 0) }).connect(filter);
-    synth.maxPolyphony = 3;
+    synth.maxPolyphony = 8;
     return { synth, filter, panner };
   });
-  const padFilter = new Tone.Filter({ frequency: 900, type: "lowpass", rolloff: -24 }).connect(reverb);
+  const padFilter = new Tone.Filter({ frequency: 900, type: "lowpass", rolloff: -24 }).connect(padBus);
   const pad = new Tone.PolySynth(padInstrument.voice, { ...padInstrument.pad, volume: -14 + (padInstrument.trim ?? 0) }).connect(padFilter);
-  pad.maxPolyphony = 8;
+  pad.maxPolyphony = 12;
   const bass = new Tone.MonoSynth({
     oscillator: { type: "sine" }, volume: -9,
     envelope: { attack: 0.5, decay: 0.4, sustain: 0.85, release: 2.5 },
     filterEnvelope: { attack: 0.5, baseFrequency: 140, octaves: 1.5, release: 2 },
-  }).connect(compressor);
+  }).connect(bassBus);
   const nodes = [master, limiter, makeup, compressor, reverb, delay, meter, fft, padFilter, pad, bass,
+    melodyBus, textureBus, padBus, bassBus,
     melodySynth, melodyFilter, melodyPanner, ...voices.flatMap((voice) => [voice.synth, voice.filter, voice.panner])];
 
   resetBands(events.rows);
@@ -171,6 +188,7 @@ export async function createPlayback({ config, features, duration, video, onEnde
     voice.panner.pan.rampTo(lead.pan, 0.5, time);
     voice.synth.triggerAttackRelease(midi(lead.note), noteSeconds, time, lead.velocity);
     draw.schedule(() => {
+      if (disposed || playbackOwner !== owner) return;
       const band = sonification.bands[lead.row];
       if (!band) return;
       band.level = Math.min(1, band.level + lead.velocity * 2);
@@ -186,6 +204,7 @@ export async function createPlayback({ config, features, duration, video, onEnde
     melodyPanner.pan.rampTo(note.pan, 0.3, time);
     melodySynth.triggerAttackRelease(midi(note.note), noteSeconds, time, note.velocity);
     draw.schedule(() => {
+      if (disposed || playbackOwner !== owner) return;
       const band = sonification.bands[note.row];
       if (band) {
         band.level = 1;
@@ -202,7 +221,9 @@ export async function createPlayback({ config, features, duration, video, onEnde
     padFilter.frequency.rampTo(500 + chord.warmth * 2200, 2, time);
     pad.triggerAttackRelease(chord.notes.map(midi), chord.duration + 0.4, time, chord.velocity);
     bass.triggerAttackRelease(midi(chord.bass), chord.duration * 0.95, time, chord.velocity * 0.9);
-    draw.schedule(() => { sonification.chord = chordName(chord.pitchClasses); }, time);
+    draw.schedule(() => {
+      if (!disposed && playbackOwner === owner) sonification.chord = chordName(chord.pitchClasses);
+    }, time);
   }, events.chords.map((chord) => [chord.t, chord])).start(0);
 
   let volume = 0.8;
@@ -210,7 +231,8 @@ export async function createPlayback({ config, features, duration, video, onEnde
   let buffering = false;
   let ended = false;
   let disposed = false;
-  let videoFailed = !video;
+  let timelineRevision = 0;
+  let videoFailed = !video || Boolean(video.error);
   const getTime = () => Math.min(duration, Math.max(0, transport.seconds));
 
   const silenceNotes = () => {
@@ -218,6 +240,21 @@ export async function createPlayback({ config, features, duration, video, onEnde
     voices.forEach((voice) => voice.synth.releaseAll());
     pad.releaseAll();
     bass.triggerRelease();
+  };
+
+  // A sustained chord may have begun long before a seek or pause. Tone.Part
+  // schedules note onsets, so restore the remainder explicitly when resuming.
+  const restoreHarmony = () => {
+    const seconds = getTime();
+    if (seconds < 0.05 || seconds >= duration - 0.05) return;
+    const chord = events.chords.findLast((event) => event.t <= seconds);
+    const remaining = chord ? chord.t + chord.duration - seconds : 0;
+    if (remaining <= 0.05) return;
+    const time = Tone.now() + 0.06;
+    padFilter.frequency.rampTo(500 + chord.warmth * 2200, 0.1, time);
+    pad.triggerAttackRelease(chord.notes.map(midi), remaining, time, chord.velocity);
+    bass.triggerAttackRelease(midi(chord.bass), remaining * 0.95, time, chord.velocity * 0.9);
+    sonification.chord = chordName(chord.pitchClasses);
   };
 
   // Keep the video on the audio clock: nudge its rate for small drift, seek for large drift.
@@ -235,7 +272,7 @@ export async function createPlayback({ config, features, duration, video, onEnde
 
   // If the video stalls to buffer, hold the music until it can continue.
   const onWaiting = () => {
-    if (!playing || ended) return;
+    if (!playing || ended || videoFailed) return;
     buffering = true;
     transport.pause();
     silenceNotes();
@@ -246,10 +283,23 @@ export async function createPlayback({ config, features, duration, video, onEnde
     if (playing) {
       transport.seconds = video.currentTime;
       transport.start();
+      restoreHarmony();
+    }
+  };
+  const onVideoFailure = () => {
+    if (disposed || videoFailed) return;
+    videoFailed = true;
+    const wasBuffering = buffering;
+    buffering = false;
+    onVideoError?.();
+    if (playing && wasBuffering) {
+      transport.start();
+      restoreHarmony();
     }
   };
   video?.addEventListener("waiting", onWaiting);
   video?.addEventListener("playing", onPlaying);
+  video?.addEventListener("error", onVideoFailure);
 
   const playVideo = async () => {
     if (videoFailed) return;
@@ -259,17 +309,18 @@ export async function createPlayback({ config, features, duration, video, onEnde
       await video.play();
     } catch {
       if (disposed) return;
-      videoFailed = true;
-      buffering = false;
-      onVideoError?.();
+      onVideoFailure();
     }
   };
 
   // schedule (not scheduleOnce) so the end fires again after seeking back.
   transport.schedule((time) => {
-    ended = true;
+    if (disposed || playbackOwner !== owner) return;
+    const scheduledRevision = timelineRevision;
     master.gain.rampTo(0, TAIL, time);
     draw.schedule(() => {
+      if (disposed || playbackOwner !== owner || scheduledRevision !== timelineRevision || !playing) return;
+      ended = true;
       playing = false;
       transport.pause();
       video?.pause();
@@ -291,10 +342,12 @@ export async function createPlayback({ config, features, duration, video, onEnde
       master.gain.cancelScheduledValues(Tone.now());
       master.gain.rampTo(volume, FADE_IN);
       transport.start("+0.05");
+      restoreHarmony();
       await playVideo();
     },
     pause() {
       if (!playing) return;
+      timelineRevision++;
       playing = false;
       buffering = false;
       transport.pause();
@@ -302,11 +355,27 @@ export async function createPlayback({ config, features, duration, video, onEnde
       video?.pause();
     },
     seek(seconds) {
-      const target = Math.min(duration - 0.05, Math.max(0, seconds));
+      if (!Number.isFinite(seconds)) return;
+      timelineRevision++;
+      const target = Math.max(0, Math.min(duration - 0.05, seconds));
       silenceNotes();
       transport.seconds = target;
       ended = false;
+      sonification.ripples.length = 0;
+      sonification.chord = chordName(events.chords.findLast((chord) => chord.t <= target).pitchClasses);
+      if (playing) {
+        master.gain.cancelScheduledValues(Tone.now());
+        master.gain.rampTo(volume, 0.1);
+        restoreHarmony();
+      }
       if (!videoFailed) video.currentTime = target;
+    },
+    setMix(levels) {
+      const now = Tone.now();
+      for (const [bus, value] of [[melodyBus, levels.melody], [textureBus, levels.texture], [padBus, levels.harmony], [bassBus, levels.harmony]]) {
+        bus.gain.cancelScheduledValues(now);
+        bus.gain.rampTo(Math.max(0, Math.min(1, value)), 0.1);
+      }
     },
     setVolume(value) {
       volume = value;
@@ -319,11 +388,15 @@ export async function createPlayback({ config, features, duration, video, onEnde
       clearInterval(syncTimer);
       video?.removeEventListener("waiting", onWaiting);
       video?.removeEventListener("playing", onPlaying);
+      video?.removeEventListener("error", onVideoFailure);
       video?.pause();
       if (video) video.playbackRate = 1;
       if (sonification.getTime === getTime) sonification.active = false;
-      transport.stop();
-      transport.cancel();
+      if (playbackOwner === owner) {
+        transport.stop();
+        transport.cancel();
+        playbackOwner = null;
+      }
       leadPart.dispose();
       melodyPart.dispose();
       chordPart.dispose();

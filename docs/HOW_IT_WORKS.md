@@ -6,7 +6,8 @@ Every track is one JSON object with everything the player needs: metadata, timed
 features, and a feature summary. The backend serves those
 objects and the media files; the frontend turns features plus style into Tone.js
 notes in sync with the NASA video on the globe. The music style is derived in the
-browser from each track's summary, so nothing is generated at runtime.
+browser from each track's summary. Notes are generated locally at playback time;
+no remote model call is needed.
 
 ```mermaid
 flowchart TD
@@ -25,7 +26,12 @@ flowchart TD
     Backend -->|"GET /api/tracks"| Player["Frontend player"]
     Backend -->|"GET /media/file"| Player
     Player -->|"summary"| Style["musicStyle.js<br/>deterministic style"]
-    Style --> Live["Tone.js music + globe video"]
+    Player -->|"timed grid"| Mapping["musicMapping.js<br/>scheduled note events"]
+    Style --> Mapping
+    Mapping --> Mix["Melody · texture · harmony mixer"]
+    Mix --> Live["Tone.js music + globe video"]
+    Player --> Lab["Listening lab<br/>grid + shared source video"]
+    Mapping --> MIDI["MIDI export<br/>notes + tempo + attribution"]
 
     classDef default fill:#102541,stroke:#294057,color:#a5c7ff;
 ```
@@ -84,3 +90,11 @@ the same fields. No API key or network call is involved.
    atmosphere and aurora follow the music's loudness.
 6. Pause, seek, volume, and track changes keep audio and video together; the
    video follows the audio clock.
+7. The listening lab visualizes the same sampled grid and source video. Its
+   faders control separate audio buses, and a map click seeks to a matching scan
+   longitude. MIDI export uses the same note generator and current mix.
+
+Color-derived warmth and optical flow are normalized visual measurements, not
+physical °C or m/s. Brightness, contrast, and whole-frame motion remain stored
+but do not drive the current music. The spatial grid assumes an equirectangular
+world map.

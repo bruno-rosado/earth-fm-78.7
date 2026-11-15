@@ -41,7 +41,7 @@ const Ripples = ({ radius = 1.008 }) => {
             const color = note.warmth < 0.5
                 ? COLD.clone().lerp(MILD, note.warmth * 2)
                 : MILD.clone().lerp(WARM, (note.warmth - 0.5) * 2);
-            mesh.material.color.copy(color).multiplyScalar(2.2); // over 1 so bloom picks it up
+            mesh.material.color.copy(color).multiplyScalar(1.6); // glow without washing out the data
             state[index].age = 0;
             state[index].strength = Math.min(1, 0.4 + note.velocity * 1.4);
         }
@@ -54,7 +54,7 @@ const Ripples = ({ radius = 1.008 }) => {
             if (!mesh.visible) return;
             const eased = 1 - Math.pow(1 - t, 3);
             mesh.scale.setScalar(0.02 + eased * 0.16 * (0.6 + ring.strength * 0.6));
-            mesh.material.opacity = (1 - t) * ring.strength;
+            mesh.material.opacity = (1 - t) * ring.strength * 0.7;
         });
     });
 

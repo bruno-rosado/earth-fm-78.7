@@ -35,6 +35,6 @@ export const auroraFragment = /* glsl */ `
     vec3 purple = vec3(0.6, 0.2, 1.0);
     // Scaled down: the frame goes through a linear -> sRGB output pass, which brightens colors.
     vec3 col = mix(green, purple, vUv.y) * band * (0.4 + uLevel) * 0.32; // louder = brighter
-    gl_FragColor = vec4(col, uOpacity); // alpha = fade amount
+    gl_FragColor = vec4(col, uOpacity * 0.7); // leave the star field visible through the curtain
   }
 `;

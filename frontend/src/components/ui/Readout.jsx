@@ -9,9 +9,9 @@ import useAnimationFrame from "./useAnimationFrame";
 const ROWS = 8;
 const MAPPINGS = [
   ["Latitude", "pitch"],
-  ["Temperature", "tone · chords"],
-  ["Current speed", "rhythm · volume"],
-  ["Current direction", "stereo pan"],
+  ["Color warmth", "tone · chords"],
+  ["Visual motion", "rhythm · volume"],
+  ["Flow direction", "stereo pan"],
 ];
 
 export default function Readout({ getTime }) {
@@ -48,7 +48,7 @@ export default function Readout({ getTime }) {
           <div className="readout-chord" ref={chordRef}>—</div>
         </div>
         <div className="readout-scale" aria-hidden>
-          <div className="readout-label">Sea temp.</div>
+          <div className="readout-label">Color warmth</div>
           <div className="temperature-ramp"><span>cold</span><span>warm</span></div>
         </div>
       </div>

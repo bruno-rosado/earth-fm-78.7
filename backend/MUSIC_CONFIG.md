@@ -36,8 +36,8 @@ the same for every style.
 
 ## Style derivation
 
-The frontend (`frontend/src/services/tone/musicStyle.js`) turns the track `summary`
-(per-latitude-band averages, mean color, brightness, motion and contrast) into the
+The frontend (`frontend/src/services/tone/musicStyle.js`) uses the per-latitude-band
+averages and mean color from the track `summary` to compute the
 style: key, mode, tempo, instruments, rhythm grid, note length, density and velocity
 ranges, pad level, and reverb:
 
@@ -48,6 +48,11 @@ ranges, pad level, and reverb:
 - instruments ← speed and warmth (fast and warm → marimba, slow and cold → bell, …);
 - reverb ← how much open ocean there is.
 
+The extractor also stores brightness, contrast, and whole-frame motion; these
+are included in the summary but are not inputs to style derivation or note
+scheduling. Grid temperature is derived from hue, and grid speed/direction from
+optical flow. They are normalized visual proxies, not decoded physical units.
+
 Moods in the player are presets that change instruments and feel over the same
 fields; they never change the key or the data mapping. `summary` is computed by `backend/pipeline/build_tracks.py` and, for
 imports, by `backend/services/imports.py`; `summarize_features` in
@@ -56,6 +61,25 @@ imports, by `backend/services/imports.py`; `summarize_features` in
 Tracks are stored in `backend/data/tracks.json` and `library.json`, written only by
 the pipeline scripts and the import worker. MongoDB remains planned; no database is
 required for this version.
+
+## Listening lab and export
+
+`ListeningLab.jsx` displays interpolated cells from the same `sampleCell` helper
+used by the music mapper. Its white box selects the band with the greatest
+`presence * (0.25 + speed)`, matching the melody's selection rule. A longitude
+click seeks to the nearest reachable scan pass. The source view draws the shared
+video element onto a small canvas, avoiding a second decoder or playback clock.
+
+`musicGeneration.js` routes melody, texture, and harmony through separate gain
+buses. Faders and solo do not rebuild synths or restart the transport. Reverb and
+delay tails can ring briefly after a layer is turned down. A held pad and bass
+are restored when resuming or seeking into the middle of a chord.
+
+`midiExport.js` runs the same event generator and produces a Standard MIDI type 1
+file with a tempo track, melody, separate latitude tracks, harmony, and bass.
+It includes program changes, pan controllers, and source attribution, respects
+mix/solo, and closes all note lifetimes. MIDI preserves the composition; its
+General MIDI instruments approximate the browser synths and omit effects.
 
 ## Verification
 

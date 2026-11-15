@@ -1,6 +1,7 @@
 // The musical style (key, mode, tempo, instruments) is computed from the track's
 // data, not chosen by a model. Same track, same style, every time. A mood preset
-// can swap instruments and feel, but the key and tempo always come from the data.
+// can swap instruments and feel. The key and base tempo come from the data;
+// some moods apply a tempo multiplier.
 //
 //   key    <- the video's dominant hue (red = C, yellow = D, green = E, cyan = F#, ...)
 //   mode   <- how warm the water is on average (warm = bright modes, cold = dark)
@@ -114,7 +115,7 @@ export function deriveStyle(track, mood = "natural") {
 // One line explaining the style, for the player.
 export function describeStyle(style) {
   const { warmth, speed } = style.derived ?? {};
-  const temp = warmth === undefined ? "" : warmth >= 0.5 ? "warm water → bright mode" : "cold water → dark mode";
-  const pace = speed === undefined ? "" : `${style.bpm} BPM from current speed`;
+  const temp = warmth === undefined ? "" : warmth >= 0.5 ? "warm colors → bright mode" : "cool colors → dark mode";
+  const pace = speed === undefined ? "" : `${style.bpm} BPM from visual motion and mood`;
   return [`key of ${style.key} from the video's color`, temp, pace].filter(Boolean).join(" · ");
 }

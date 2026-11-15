@@ -23,8 +23,8 @@ Open http://localhost:5173 for the frontend and http://localhost:8000/docs to tr
 ## How it sounds
 
 Like NASA's Hearing Hubble, a scan line reads the map as the globe turns: latitude
-sets pitch, sea temperature sets tone color and chords, current speed sets rhythm
-and loudness, and current direction sets stereo pan. Select a track and press play
+sets pitch, color warmth sets tone color and chords, visual motion sets rhythm
+and loudness, and flow direction sets stereo pan. Select a track and press play
 (or Space).
 
 The key, mode, tempo, and instruments are computed from each track's data.
@@ -50,8 +50,28 @@ See [backend/MUSIC_CONFIG.md](backend/MUSIC_CONFIG.md) for the mapping and tests
   audio spectrum.
 - **Readout (right):** scan longitude, ocean region, current chord, and a meter per
   latitude voice colored by water temperature.
-- **Mood:** the key, mode, tempo and instruments are computed from the data (the video's color picks the key, water temperature the mode, current speed the tempo); moods are presets that change the instruments. **✕** or Escape returns
-  to the track list.
+- **Mood:** the key, mode, tempo and instruments are computed from the data.
+  Presets change the instruments and feel, including tempo for some moods.
+  **✕** returns to the track list. Escape closes the browser, then the lab,
+  then the track.
+
+- **Listening lab:** opens alongside a track; press **L** to hide or show it.
+  Switch between the color grid, motion grid, and original NASA video. The video
+  view reuses the globe's decoded frames. Click a longitude to seek to the nearest
+  moment the scan crosses it; the white cell marks the most active melody band.
+- **Mix:** adjust melody, texture, and harmony separately. **S** solos a layer;
+  **Reset** restores the full mix. Mix settings persist across mood changes.
+- **Export:** download the actual composition as a multitrack MIDI file, including
+  tempo, instruments, panning, and the NASA source. MIDI contains notes and musical
+  settings; its sound depends on the app that opens it. Tone.js effects are not included.
+
+The values labeled warmth and motion come from image colors and optical flow.
+They are normalized visual measurements, rather than physical °C or m/s. Global
+brightness, contrast, and frame-to-frame motion are stored but do not currently
+drive the music. Playback with local tracks does not need an AI API or a network
+request for generating music; NASA search/import needs internet access.
+
+See [DEMO.md](DEMO.md) for a short presentation walkthrough.
 
 ## Tests
 
