@@ -1,19 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { generateMusicConfig } from "../api";
 import { createPlayback } from "./musicGeneration";
-import { DEFAULT_CONFIG } from "./musicMapping";
+import { deriveStyle } from "./musicStyle";
 import { sonification } from "./sonificationState";
 
 const isTyping = (target) => Boolean(target?.closest?.("input, textarea, select"));
 
-// Takes a track (with its features and default style attached) and owns its playback. The UI reads
-// fast-changing values (time, levels) from `sonification` every frame; React
-// state here only changes on user actions.
+// Takes a track (with its features and summary attached) and owns its playback.
+// The style is derived from the summary, with an optional mood preset. The UI
+// reads fast-changing values (time, levels) from `sonification` every frame;
+// React state here only changes on user actions.
 export default function useTrackPlayer(selectedTrack, videoRef, { autoPlay = false } = {}) {
   const [features, setFeatures] = useState(null);
   const [config, setConfig] = useState(null);
-  const [configSource, setConfigSource] = useState("default");
-  const [generating, setGenerating] = useState(false);
+  const [mood, setMoodState] = useState("natural");
   const [starting, setStarting] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [volume, setVolumeState] = useState(0.8);
@@ -21,7 +20,6 @@ export default function useTrackPlayer(selectedTrack, videoRef, { autoPlay = fal
   const [notice, setNotice] = useState("");
   const playback = useRef(null);
   const revision = useRef(0);
-  const request = useRef(null);
   const pendingPlay = useRef(false); // play as soon as the track is ready
   const position = useRef(0); // time to start from when no playback exists yet
   const duration = selectedTrack?.duration ?? 0;
@@ -35,26 +33,21 @@ export default function useTrackPlayer(selectedTrack, videoRef, { autoPlay = fal
 
   useEffect(() => {
     revision.current++;
-    const abort = new AbortController();
-    request.current = abort;
     disposePlayback();
     position.current = 0;
     pendingPlay.current = Boolean(selectedTrack && autoPlay);
     setFeatures(null);
     setConfig(null);
-    setConfigSource("default");
-    setGenerating(false);
+    setMoodState("natural");
     setError("");
     setNotice("");
     if (selectedTrack) {
-      // The track list already carries the features and default style.
+      // The track list already carries the features and summary.
       setFeatures(selectedTrack.features);
-      setConfig(selectedTrack.config ?? { ...DEFAULT_CONFIG, track_id: selectedTrack.id });
-      setConfigSource(selectedTrack.config ? "generated" : "default");
+      setConfig(deriveStyle(selectedTrack, "natural"));
     }
     return () => {
       revision.current++;
-      abort.abort();
       disposePlayback();
     };
     // autoPlay is read once per track selection on purpose.
@@ -141,28 +134,17 @@ export default function useTrackPlayer(selectedTrack, videoRef, { autoPlay = fal
     playback.current?.setVolume(value);
   }, []);
 
-  const generate = useCallback(async (prompt) => {
-    const abort = request.current;
-    const current = revision.current;
-    setGenerating(true);
-    setError("");
-    try {
-      const recipe = await generateMusicConfig(selectedTrack, prompt, { signal: abort.signal });
-      if (abort.signal.aborted || revision.current !== current) return;
-      // Rebuild the instruments with the new style, continuing from the same moment.
-      pendingPlay.current = playing;
-      disposePlayback();
-      setConfig(recipe);
-      setConfigSource("vibe");
-    } catch (failure) {
-      if (!abort.signal.aborted) setError(failure.message);
-    } finally {
-      if (!abort.signal.aborted) setGenerating(false);
-    }
-  }, [selectedTrack, playing, disposePlayback]);
+  // Swap the mood preset; playback continues from the same moment with new instruments.
+  const setMood = useCallback((next) => {
+    if (!selectedTrack || next === mood) return;
+    pendingPlay.current = playing;
+    disposePlayback();
+    setMoodState(next);
+    setConfig(deriveStyle(selectedTrack, next));
+  }, [selectedTrack, mood, playing, disposePlayback]);
 
   return {
-    features, config, configSource, duration, generating, starting, playing, ready,
-    volume, error, notice, play, pause, toggle, seek, setVolume, generate, getTime,
+    features, config, mood, duration, starting, playing, ready,
+    volume, error, notice, play, pause, toggle, seek, setVolume, setMood, getTime,
   };
 }

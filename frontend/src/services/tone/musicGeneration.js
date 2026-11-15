@@ -2,8 +2,8 @@ import * as Tone from "tone";
 import { chordName, createMusicEvents, scanPosition } from "./musicMapping";
 import { resetBands, sonification } from "./sonificationState";
 
-// Instrument palette. Gemini picks one for the lead (band voices) and one for the
-// pad (sustained chords). Each is built from Tone.js synths; no samples to load.
+// Instrument palette. The style picks one for the lead (melody and band voices)
+// and one for the pad (sustained chords). Each is built from Tone.js synths; no samples to load.
 // `lead` options shape short notes; `pad` options shape long held chords.
 // `trim` (dB) evens out loudness between bright and soft instruments.
 const env = (attack, decay, sustain, release) => ({ attack, decay, sustain, release });
@@ -138,12 +138,17 @@ export async function createPlayback({ config, features, duration, video, onEnde
   master.connect(fft);
   await reverb.ready;
 
-  // One lead voice per latitude band, each with its own tone filter and pan.
+  // The melody: one clear voice, loudest in the mix, with its own tone filter and pan.
+  const melodyPanner = new Tone.Panner(0).connect(delay);
+  const melodyFilter = new Tone.Filter({ frequency: 2000, type: "lowpass", rolloff: -12 }).connect(melodyPanner);
+  const melodySynth = new Tone.PolySynth(leadInstrument.voice, { ...leadInstrument.lead, volume: -4 + (leadInstrument.trim ?? 0) }).connect(melodyFilter);
+  melodySynth.maxPolyphony = 4;
+  // Texture: one quiet voice per latitude band, each with its own tone filter and pan.
   const voices = Array.from({ length: events.rows }, () => {
     const panner = new Tone.Panner(0).connect(delay);
     const filter = new Tone.Filter({ frequency: 1500, type: "lowpass", rolloff: -12 }).connect(panner);
-    const synth = new Tone.PolySynth(leadInstrument.voice, { ...leadInstrument.lead, volume: -10 + (leadInstrument.trim ?? 0) }).connect(filter);
-    synth.maxPolyphony = 4;
+    const synth = new Tone.PolySynth(leadInstrument.voice, { ...leadInstrument.lead, volume: -17 + (leadInstrument.trim ?? 0) }).connect(filter);
+    synth.maxPolyphony = 3;
     return { synth, filter, panner };
   });
   const padFilter = new Tone.Filter({ frequency: 900, type: "lowpass", rolloff: -24 }).connect(reverb);
@@ -155,7 +160,7 @@ export async function createPlayback({ config, features, duration, video, onEnde
     filterEnvelope: { attack: 0.5, baseFrequency: 140, octaves: 1.5, release: 2 },
   }).connect(compressor);
   const nodes = [master, limiter, makeup, compressor, reverb, delay, meter, fft, padFilter, pad, bass,
-    ...voices.flatMap((voice) => [voice.synth, voice.filter, voice.panner])];
+    melodySynth, melodyFilter, melodyPanner, ...voices.flatMap((voice) => [voice.synth, voice.filter, voice.panner])];
 
   resetBands(events.rows);
   const draw = Tone.getDraw();
@@ -175,6 +180,24 @@ export async function createPlayback({ config, features, duration, video, onEnde
       }
     }, time);
   }, events.leads.map((lead) => [lead.t, lead])).start(0);
+  const melodyPart = new Tone.Part((time, note) => {
+    // Warm water opens the filter wide (bright), cold water keeps it dark.
+    melodyFilter.frequency.setValueAtTime(300 + note.warmth * 5000, time);
+    melodyPanner.pan.rampTo(note.pan, 0.3, time);
+    melodySynth.triggerAttackRelease(midi(note.note), noteSeconds, time, note.velocity);
+    draw.schedule(() => {
+      const band = sonification.bands[note.row];
+      if (band) {
+        band.level = 1;
+        band.warmth = note.warmth;
+      }
+      sonification.pulse = note.velocity;
+      sonification.hotRow = note.row;
+      if (sonification.ripples.length < 64) {
+        sonification.ripples.push({ row: note.row, u: scanPosition(note.t), warmth: note.warmth, velocity: Math.min(1, note.velocity * 1.3) });
+      }
+    }, time);
+  }, events.melody.map((note) => [note.t, note])).start(0);
   const chordPart = new Tone.Part((time, chord) => {
     padFilter.frequency.rampTo(500 + chord.warmth * 2200, 2, time);
     pad.triggerAttackRelease(chord.notes.map(midi), chord.duration + 0.4, time, chord.velocity);
@@ -191,6 +214,7 @@ export async function createPlayback({ config, features, duration, video, onEnde
   const getTime = () => Math.min(duration, Math.max(0, transport.seconds));
 
   const silenceNotes = () => {
+    melodySynth.releaseAll();
     voices.forEach((voice) => voice.synth.releaseAll());
     pad.releaseAll();
     bass.triggerRelease();
@@ -301,6 +325,7 @@ export async function createPlayback({ config, features, duration, video, onEnde
       transport.stop();
       transport.cancel();
       leadPart.dispose();
+      melodyPart.dispose();
       chordPart.dispose();
       // Let ringing notes fade out before tearing down so stopping never clicks.
       master.gain.cancelScheduledValues(Tone.now());

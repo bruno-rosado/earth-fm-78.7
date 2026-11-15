@@ -1,12 +1,17 @@
-// The LLM chooses the style; the same style and data always make the same notes.
+// Data in, notes out. The same style and data always make the same notes.
 //
 // The video is an equirectangular world map. A scan line reads the longitude that
 // faces the viewer as the globe turns westward, like Hearing Hubble's playhead.
-// Each latitude band is a voice (north = high). In a band, current speed sets how
-// often and how loudly it plays, temperature sets tone color, and east/west flow
-// sets stereo pan. The average temperature under the scan line picks the chords.
+// Three layers play what's under the line:
+//   melody  - ONE note per beat from the busiest latitude band under the line:
+//             north = high pitch, south = low; faster water = louder and more
+//             often; warmer water = brighter tone; land = silence.
+//   texture - each latitude band shimmers quietly on its own, same rules.
+//   harmony - a pad and bass whose chord follows how warm the water is, and
+//             which fade out when the line crosses land.
 
 const SILENT_BELOW = 0.08; // presence under this is land or empty map
+const MELODY_FLOOR = 0.1; // least energy (presence x speed) that earns a melody note
 const LEAD_RANGE = 24; // semitones from the southern to the northern band
 const CHORD_WARMTH_MARGIN = 0.06; // hysteresis so chords don't flicker on a boundary
 
@@ -32,23 +37,6 @@ const CHORD_ORDER = {
   dorian: [0, 3, 1, 6, 2],
   pentatonic_major: [4, 1, 3, 0],
   pentatonic_minor: [0, 2, 3, 4],
-};
-
-// Used when no Gemini style has been generated for a track.
-export const DEFAULT_CONFIG = {
-  schema_version: 2,
-  bpm: 72,
-  key: "D",
-  mode: "pentatonic_major",
-  low_octave: 3,
-  lead_instrument: "fm_synth",
-  pad_instrument: "am_synth",
-  rhythm_grid: "8n",
-  note_duration: "4n",
-  density_range: [0.04, 0.45],
-  velocity_range: [0.12, 0.55],
-  pad_level: 0.55,
-  reverb: 0.45,
 };
 
 const lerp = (low, high, amount) => low + (high - low) * amount;
@@ -132,6 +120,13 @@ function voiceChord(config, pitchClasses) {
     .sort((a, b) => a - b);
 }
 
+// Scale degree for a latitude band: the south pole is degree 0, the north pole two
+// octaves up, so melody pitch reads as latitude.
+function rowDegree(config, row, rows) {
+  const span = 2 * MODES[config.mode].length;
+  return Math.round((span * (rows - 1 - row)) / Math.max(1, rows - 1));
+}
+
 function normalizer(values) {
   const sorted = [...values].sort((a, b) => a - b);
   const lower = sorted[Math.floor((sorted.length - 1) * 0.1)];
@@ -189,7 +184,8 @@ function createChords(config, features, duration) {
       pitchClasses,
       notes: voiceChord(config, pitchClasses),
       bass: degreeToMidi(config, root) - 12 * (config.low_octave > 2 ? 1 : 0),
-      velocity: config.pad_level * lerp(0.35, 1, smoothstep(0, 0.6, presence)),
+      // Open ocean carries the harmony; over land the pad nearly disappears.
+      velocity: config.pad_level * lerp(0.12, 1, smoothstep(0.04, 0.45, presence)),
       warmth,
     });
   }
@@ -233,14 +229,19 @@ export function createMusicEvents(config, features, duration) {
   // Stagger voices so equal densities don't all fire on the same step.
   const phase = Array.from({ length: rows }, (_, row) => (row * 0.618) % 1);
   const leads = [];
+  const melody = [];
+  let melodyPhase = 1;
   let chordIndex = 0;
   for (let step = 0; step * interval < duration; step++) {
     const t = step * interval;
     while (chordIndex + 1 < chords.length && chords[chordIndex + 1].t <= t) chordIndex++;
     const chord = chords[chordIndex];
     const u = scanPosition(t);
+    let hot = null; // the busiest band under the scan line this step
     for (let row = 0; row < rows; row++) {
       const [presence, temperature, speed, flow] = sampleCell(features, t, u, row);
+      const energy = presence * (0.25 + speed);
+      if (!hot || energy > hot.energy) hot = { row, presence, temperature, speed, flow, energy };
       const audible = smoothstep(SILENT_BELOW, 0.3, presence);
       if (audible === 0) continue;
       phase[row] += lerp(...config.density_range, speed) * audible;
@@ -255,6 +256,30 @@ export function createMusicEvents(config, features, duration) {
         pan: clamp(flow * 0.8, -0.8, 0.8),
       });
     }
+    // Melody: fast water plays every beat, slow water every few, land none.
+    if (hot && hot.energy >= MELODY_FLOOR) {
+      melodyPhase += lerp(0.3, 1, hot.speed);
+      if (melodyPhase >= 1) {
+        melodyPhase -= Math.floor(melodyPhase);
+        const degree = rowDegree(config, hot.row, rows);
+        const note = {
+          t,
+          row: hot.row,
+          note: degreeToMidi(config, degree),
+          velocity: lerp(0.35, 1, hot.speed) * lerp(0.5, 1, smoothstep(SILENT_BELOW, 0.5, hot.presence)),
+          warmth: hot.temperature,
+          speed: hot.speed,
+          pan: clamp(hot.flow * 0.6, -0.6, 0.6),
+        };
+        melody.push(note);
+        // Fast eddies get a quick grace note a step up, like a flick of the current.
+        if (hot.speed > 0.65 && t + interval / 2 < duration) {
+          melody.push({ ...note, t: t + interval / 2, note: degreeToMidi(config, degree + 1), velocity: note.velocity * 0.6 });
+        }
+      }
+    } else {
+      melodyPhase = 1; // land: the next ocean plays at once
+    }
   }
-  return { leads, chords, rows };
+  return { leads, melody, chords, rows };
 }

@@ -1,16 +1,15 @@
 // The now-playing dock: track, play/pause, seek, volume, style, and close.
 import { useEffect, useRef, useState } from "react";
 import TimelineStrip from "./TimelineStrip";
+import { MOODS, describeStyle } from "../../services/tone/musicStyle";
 import { sonification } from "../../services/tone/sonificationState";
 import useAnimationFrame from "./useAnimationFrame";
 
 const styleLabel = (config) => `${config.key} ${config.mode.replaceAll("_", " ")} · ${config.bpm} BPM`;
-const SOURCE_TEXT = { generated: "styled by Gemini", vibe: "your vibe", default: "default style" };
 
 export default function Dock({ track, player, onClose }) {
-  const { config, configSource, ready, starting, playing, generating, volume, error, notice } = player;
+  const { config, mood, ready, starting, playing, volume, error, notice } = player;
   const [styleOpen, setStyleOpen] = useState(false);
-  const [prompt, setPrompt] = useState("");
   const [muted, setMuted] = useState(null); // volume before muting
   const glowRef = useRef(null);
 
@@ -35,11 +34,6 @@ export default function Dock({ track, player, onClose }) {
     }
   };
 
-  const submitStyle = (event) => {
-    event.preventDefault();
-    if (!generating) player.generate(prompt);
-  };
-
   return (
     <div className="dock" role="region" aria-label="Player">
       <div className="dock-main">
@@ -48,7 +42,7 @@ export default function Dock({ track, player, onClose }) {
           <div className="dock-meta">
             <div className="dock-title" title={track.title}>{track.title}</div>
             <div className="dock-subtitle">
-              {config ? `${styleLabel(config)} · ${SOURCE_TEXT[configSource]}` : "NASA Scientific Visualization Studio"}
+              {config ? `${styleLabel(config)} · ${config.lead_instrument.replaceAll("_", " ")} · from the data` : "NASA Scientific Visualization Studio"}
             </div>
           </div>
         </div>
@@ -94,7 +88,7 @@ export default function Dock({ track, player, onClose }) {
           </div>
           <button className={`chip ${styleOpen ? "is-active" : ""}`} onClick={() => setStyleOpen((open) => !open)} aria-expanded={styleOpen}>
             <svg viewBox="0 0 24 24" aria-hidden><path d="M12 2l2.2 6.3L20 10l-5.8 1.7L12 18l-2.2-6.3L4 10l5.8-1.7z" fill="currentColor" /></svg>
-            Style
+            Mood
           </button>
           <button className="icon-button small" onClick={onClose} aria-label="Back to all tracks" title="All tracks">
             <svg viewBox="0 0 24 24" aria-hidden><path d="m6 6 12 12M18 6 6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
@@ -105,24 +99,14 @@ export default function Dock({ track, player, onClose }) {
       <TimelineStrip features={player.features} duration={player.duration} getTime={player.getTime} onSeek={player.seek} disabled={!ready} />
 
       {styleOpen && (
-        <form className="style-popover" onSubmit={submitStyle}>
-          <label htmlFor="music-style">Describe a mood. Gemini picks the key, tempo, and instruments; the data still plays the notes.</label>
-          <div className="style-row">
-            <input
-              id="music-style" value={prompt} maxLength={1000} autoFocus
-              placeholder="e.g. glassy, slow, cinematic"
-              onChange={(event) => setPrompt(event.target.value)} disabled={generating}
-            />
-            <button type="submit" className="primary small" disabled={!player.features || generating}>
-              {generating ? "Composing…" : "Generate"}
-            </button>
-          </div>
+        <div className="style-popover">
+          <label>Mood changes the instruments and feel. {config && <span className="muted">The {describeStyle(config)}.</span>}</label>
           <div className="style-presets">
-            {["Calm ambient", "Cinematic and vast", "Playful marimba", "Dark and deep"].map((preset) => (
-              <button type="button" key={preset} className="chip" disabled={generating} onClick={() => { setPrompt(preset); player.generate(preset); }}>{preset}</button>
+            {MOODS.map((preset) => (
+              <button type="button" key={preset.id} className={`chip ${mood === preset.id ? "is-active" : ""}`} title={preset.hint} onClick={() => player.setMood(preset.id)}>{preset.label}</button>
             ))}
           </div>
-        </form>
+        </div>
       )}
 
       {(notice || error) && <p className={error ? "dock-message is-error" : "dock-message"} role={error ? "alert" : "status"}>{error || notice}</p>}

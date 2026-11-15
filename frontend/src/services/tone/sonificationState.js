@@ -6,6 +6,8 @@ export const sonification = {
   getLevel: () => 0, // output loudness, 0-1
   getSpectrum: () => null, // Float32Array of decibels, low to high frequency
   chord: "", // name of the chord now sounding, e.g. "Bm"
+  pulse: 0, // set to the melody note's velocity when one plays; the scene decays it
+  hotRow: -1, // latitude band the melody is playing from
   toggle: null, // play/pause, set by the player so the globe can be clicked
   // One entry per latitude band, north first. The engine raises `level` when a
   // band plays a note; the scene decays it back toward 0.
@@ -18,4 +20,6 @@ export function resetBands(count) {
   sonification.bands = Array.from({ length: count }, () => ({ level: 0, warmth: 0.5 }));
   sonification.ripples.length = 0;
   sonification.chord = "";
+  sonification.pulse = 0;
+  sonification.hotRow = -1;
 }

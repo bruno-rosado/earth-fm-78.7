@@ -2,11 +2,14 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
-  chordName, createMusicEvents, scanTimeline, DEFAULT_CONFIG, globeRotationFor, MODES, sampleCell, scanPosition, SCAN_PERIOD,
+  chordName, createMusicEvents, scanTimeline, globeRotationFor, MODES, sampleCell, scanPosition, SCAN_PERIOD,
 } from "./musicMapping.js";
+import { deriveStyle, keyFromColor, modeFromWarmth, tempoFromSpeed } from "./musicStyle.js";
 
-const samples = JSON.parse(readFileSync(new URL("../../../../backend/data/tracks.json", import.meta.url)))
-  .find((track) => track.id === "ecco2_sst_flow").features;
+const track = JSON.parse(readFileSync(new URL("../../../../backend/data/tracks.json", import.meta.url)))
+  .find((t) => t.id === "ecco2_sst_flow");
+const samples = track.features;
+const DEFAULT_CONFIG = deriveStyle(track);
 const config = { ...DEFAULT_CONFIG, mode: "dorian", key: "D", rhythm_grid: "8n", bpm: 80 };
 const DURATION = 66.7;
 
@@ -77,9 +80,29 @@ test("lead notes are chord tones, and northern bands sound higher than southern 
 test("land is silent and faster currents play more often", () => {
   const land = createMusicEvents(config, [sample(0, flatGrid([0, 0.5, 1, 0]))], 10);
   assert.equal(land.leads.length, 0);
+  assert.equal(land.melody.length, 0);
+  assert.ok(land.chords.every((chord) => chord.velocity < config.pad_level * 0.2), "pad nearly silent over land");
   const slow = createMusicEvents(config, [sample(0, flatGrid([1, 0.5, 0, 0]))], 10);
   const fast = createMusicEvents(config, [sample(0, flatGrid([1, 0.5, 1, 0]))], 10);
   assert.ok(fast.leads.length > slow.leads.length * 3);
+  assert.ok(fast.melody.length > slow.melody.length * 2);
+  assert.ok(Math.min(...fast.melody.map((n) => n.velocity)) > Math.max(...slow.melody.map((n) => n.velocity)));
+});
+
+test("melody follows the busiest band: north is high, south is low, warm is bright", () => {
+  const north = flatGrid([0, 0, 0, 0]);
+  north[0] = north[0].map(() => [1, 0.9, 1, 0]);
+  const south = flatGrid([0, 0, 0, 0]);
+  south[3] = south[3].map(() => [1, 0.1, 1, 0]);
+  const high = createMusicEvents(config, [sample(0, north)], 8).melody;
+  const low = createMusicEvents(config, [sample(0, south)], 8).melody;
+  assert.ok(high.length && low.length);
+  assert.ok(high.every((n) => n.row === 0) && low.every((n) => n.row === 3));
+  assert.ok(Math.min(...high.map((n) => n.note)) > Math.max(...low.map((n) => n.note)));
+  assert.ok(high[0].warmth > low[0].warmth);
+  const { melody } = createMusicEvents(config, samples, DURATION);
+  assert.ok(melody.length > 40);
+  assert.ok(melody.every((n) => MODES[config.mode].includes(((n.note - 2) % 12 + 12) % 12)), "melody stays in key");
 });
 
 test("eastward and westward currents pan to opposite sides", () => {
@@ -96,6 +119,23 @@ test("every mode and the default style produce music", () => {
   }
   assert.throws(() => createMusicEvents({ ...config, mode: "locrian" }, samples, DURATION));
   assert.throws(() => createMusicEvents(config, [], DURATION));
+});
+
+test("style is derived from the data, deterministically", () => {
+  assert.deepEqual(deriveStyle(track), deriveStyle(track));
+  assert.equal(keyFromColor({ red: 1 }), "C");
+  assert.equal(keyFromColor({ green: 1 }), "E");
+  assert.equal(keyFromColor({ red: 0.5, yellow: 0.5 }), "C#");
+  assert.equal(modeFromWarmth(0.9), "lydian");
+  assert.equal(modeFromWarmth(0.1), "minor");
+  assert.ok(tempoFromSpeed(0.9) > tempoFromSpeed(0.2));
+  const natural = deriveStyle(track);
+  const playful = deriveStyle(track, "playful");
+  assert.equal(natural.key, playful.key, "mood never changes the key");
+  assert.notEqual(natural.lead_instrument + natural.bpm, playful.lead_instrument + playful.bpm);
+  for (const mood of ["natural", "calm", "cinematic", "playful", "deep"]) {
+    assert.ok(createMusicEvents(deriveStyle(track, mood), samples, DURATION).melody.length > 0, mood);
+  }
 });
 
 test("chords are named in any inversion", () => {

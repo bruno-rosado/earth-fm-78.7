@@ -3,7 +3,7 @@ extract features, and add it to the library. Work runs on one background
 thread; the API polls job status.
 
 tracks.json is the catalog shipped with the repo. Imported tracks go to
-library.json in the same shape (metadata, features, summary, default config), which is ignored by git along with their media, so each machine
+library.json in the same shape (metadata, features, summary), which is ignored by git along with their media, so each machine
 has its own library and never commits hundreds of megabytes of video."""
 
 import json
@@ -18,7 +18,7 @@ from tempfile import NamedTemporaryFile
 import httpx2 as httpx
 
 from . import nasa
-from .music_config import MusicConfigError, generate_config, summarize_features
+from .music_config import summarize_features
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 DATA_DIR = BACKEND_DIR / "data"
@@ -208,12 +208,7 @@ def _run(job):
             "source": card["source"],
         }
         summary = summarize_features(features)
-        _update(job, progress=1.0, message="Composing a default style")
-        try:
-            config = generate_config(track, summary).model_dump()
-        except MusicConfigError:
-            config = None  # the player falls back to its built-in default
-        track.update(features=features, summary=summary, config=config)
+        track.update(features=features, summary=summary)
         _upsert_track(track)
         _update(job, status="done", progress=1.0, message="Ready to play", track=track)
     except (ImportFailed, nasa.NasaError, ValueError, OSError) as error:

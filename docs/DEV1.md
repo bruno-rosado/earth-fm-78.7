@@ -26,5 +26,5 @@ FastAPI tutorial: https://fastapi.tiangolo.com/tutorial/first-steps/
 
 ## Most critical to nail down (first 2 hours)
 1. **The exact JSON shape** of a track in `tracks.json`, including its `features`. Commit one example.
-2. **The URL list:** `/api/tracks`, `/api/music-config`, `/media/<file>`.
+2. **The URL list:** `/api/tracks`, `/media/<file>`.
 3. **Where files live:** `backend/data/` and `backend/media/`.

@@ -15085,22 +15085,6 @@
         ]
       }
     ],
-    "config": {
-      "schema_version": 2,
-      "track_id": "ecco2_sst_flow",
-      "bpm": 64,
-      "key": "C",
-      "mode": "dorian",
-      "low_octave": 2,
-      "lead_instrument": "fm_synth",
-      "pad_instrument": "synth",
-      "rhythm_grid": "8n",
-      "note_duration": "4n",
-      "density_range": [0.15, 0.55],
-      "velocity_range": [0.1, 0.6],
-      "pad_level": 0.5,
-      "reverb": 0.65
-    },
     "summary": {
       "sample_count": 67,
       "first_t": 0.0,

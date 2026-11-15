@@ -148,7 +148,10 @@ const Globe = ({ videoUrl, playbackVideoRef }) => {
         mat.visible = mat.opacity > 0.01;
 
         const level = sonification.active ? sonification.getLevel() : 0;
-        scanMatRef.current.opacity = THREE.MathUtils.lerp(scanMatRef.current.opacity, sonification.active ? 0.35 + level * 0.5 : 0, ease);
+        // The scan line flashes with each melody note, then settles back.
+        sonification.pulse *= Math.exp(-delta * 4);
+        const scanTarget = sonification.active ? 0.3 + level * 0.3 + sonification.pulse * 0.6 : 0;
+        scanMatRef.current.opacity = THREE.MathUtils.lerp(scanMatRef.current.opacity, scanTarget, Math.min(1, delta * 12));
         const atmosphere = atmosphereRef.current.uniforms.uIntensity;
         atmosphere.value = THREE.MathUtils.lerp(atmosphere.value, 0.35 + level * 0.9, Math.min(1, delta * 8));
     });

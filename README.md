@@ -27,10 +27,8 @@ sets pitch, sea temperature sets tone color and chords, current speed sets rhyth
 and loudness, and current direction sets stereo pan. Select a track and press play
 (or Space).
 
-Optionally add `GEMINI_API_KEY` to `backend/.env` (see `backend/.env.example`) and
-use **Style → Generate** to have Gemini choose the key, mode, tempo, and instruments.
-See [backend/MUSIC_CONFIG.md](backend/MUSIC_CONFIG.md) for the mapping, config
-format, endpoints, and tests.
+The key, mode, tempo, and instruments are computed from each track's data.
+See [backend/MUSIC_CONFIG.md](backend/MUSIC_CONFIG.md) for the mapping and tests.
 
 ## Using the app
 
@@ -52,7 +50,7 @@ format, endpoints, and tests.
   audio spectrum.
 - **Readout (right):** scan longitude, ocean region, current chord, and a meter per
   latitude voice colored by water temperature.
-- **Style:** pick a preset or describe a mood for Gemini. **✕** or Escape returns
+- **Mood:** the key, mode, tempo and instruments are computed from the data (the video's color picks the key, water temperature the mode, current speed the tempo); moods are presets that change the instruments. **✕** or Escape returns
   to the track list.
 
 ## Tests
@@ -66,8 +64,8 @@ Frontend tests: `cd frontend && npm test`.
 ## What's here
 ```
 backend/main.py        backend app setup
-backend/routes/        API: tracks, music-config, NASA search and imports
-backend/services/      Gemini music config, NASA SVS client, import jobs
+backend/routes/        API: tracks, NASA search and imports
+backend/services/      Feature summary, NASA SVS client, import jobs
 backend/data/          tracks.json (shipped) and library.json (imports): every track
                        with features, summary, default style
 backend/pipeline/      offline scripts that build tracks.json (extract, build_tracks)
