@@ -1,14 +1,15 @@
 import { useEffect, useRef } from "react";
-import { sampleCell, scanPosition } from "../services/tone/musicMapping.js";
+import { sampleCell, scanPath, type ScanPattern } from "../services/tone/musicMapping.js";
 import type { FeatureSample } from "../types";
 
 interface AudioVisualizerProps {
   features: FeatureSample[];
   getTime: () => number;
   playing: boolean;
+  pattern: ScanPattern;
 }
 
-export default function AudioVisualizer({ features, getTime, playing }: AudioVisualizerProps) {
+export default function AudioVisualizer({ features, getTime, playing, pattern }: AudioVisualizerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -57,20 +58,39 @@ export default function AudioVisualizer({ features, getTime, playing }: AudioVis
         }
       }
 
-      const scanX = insetX + scanPosition(time) * (bounds.width - insetX * 2);
+      const path = scanPath(time, pattern);
       context.beginPath();
-      context.moveTo(scanX, insetY);
-      context.lineTo(scanX, bounds.height - insetY);
       context.strokeStyle = playing ? "rgba(248, 219, 169, .95)" : "rgba(248, 219, 169, .45)";
       context.lineWidth = 2;
-      context.stroke();
+      if (path.type === "vertical") {
+        const scanX = insetX + path.position * (bounds.width - insetX * 2);
+        context.moveTo(scanX, insetY);
+        context.lineTo(scanX, bounds.height - insetY);
+        context.stroke();
+      } else if (path.type === "rotating-line") {
+        const centerX = bounds.width / 2;
+        const centerY = bounds.height / 2;
+        const length = Math.hypot(bounds.width, bounds.height);
+        context.save();
+        context.translate(centerX, centerY);
+        context.rotate(path.angle);
+        context.moveTo(-length / 2, 0);
+        context.lineTo(length / 2, 0);
+        context.stroke();
+        context.restore();
+      } else {
+        const radiusX = path.radius * bounds.width / Math.SQRT2;
+        const radiusY = path.radius * bounds.height / Math.SQRT2;
+        context.ellipse(bounds.width / 2, bounds.height / 2, Math.max(radiusX, 1), Math.max(radiusY, 1), 0, 0, Math.PI * 2);
+        context.stroke();
+      }
 
       frame = window.requestAnimationFrame(draw);
     };
 
     frame = window.requestAnimationFrame(draw);
     return () => window.cancelAnimationFrame(frame);
-  }, [features, getTime, playing]);
+  }, [features, getTime, playing, pattern]);
 
   return <canvas className="data-visualizer" ref={canvasRef} role="img" aria-label="Animated map of the track's measured ocean data" />;
 }

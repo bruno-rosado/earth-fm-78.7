@@ -62,11 +62,12 @@ Density, velocity, pad level, and reverb are range-checked by the backend model.
 
 ## Data-to-sound mapping
 
-- The scan moves westward over the equirectangular feature grid.
-- Each latitude band is a voice; north maps to higher pitches.
+- The selected scan pattern moves over the equirectangular feature grid.
+- Each latitude band is a voice; north maps to a brighter filter tone.
+- Whole-frame image brightness or color, selected in the player, controls pitch.
+- The presence-weighted mean latitude under the scan selects chords.
 - Current speed controls note density and velocity. Land and empty cells are
   silent.
-- Temperature controls the filter tone and selects chords.
 - Current direction controls stereo pan.
 
 The audio transport is the playback clock. The video follows that clock, so

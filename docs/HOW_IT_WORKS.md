@@ -30,8 +30,9 @@ requests and needs no WebSockets.
    its controls alongside a Canvas 2D view of the measured data.
 4. On Play, Tone.js schedules notes and chords from the selected feature
    timeline. Its audio transport is the master clock; the video follows it.
-5. Latitude maps to pitch, temperature to tone color and harmony, current speed
-   to rhythm and loudness, and flow direction to stereo pan.
+5. Whole-frame brightness or color maps to pitch, latitude to tone color and
+   harmony, current speed to rhythm and loudness, and flow direction to stereo
+   pan. The scan's presence-weighted mean latitude selects the chords.
 
 The Canvas visualizer draws the precomputed latitude/longitude grid and marks
 the column currently being sonified. It is a 2D data display, not a 3D globe.

@@ -1,4 +1,5 @@
 import type { FeatureSample, MusicConfig } from "../../types";
+import type { DataSource, ScanPattern } from "./musicMapping.js";
 
 export interface Playback {
   duration: number;
@@ -16,6 +17,8 @@ export function createPlayback(options: {
   features: FeatureSample[];
   duration: number;
   video: HTMLVideoElement | null;
+  scanPattern?: ScanPattern;
+  dataSource?: DataSource;
   onEnded?: () => void;
   onVideoError?: () => void;
 }): Promise<Playback>;

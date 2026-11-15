@@ -110,12 +110,14 @@ const MAKEUP_DB = 8;
 
 export const INSTRUMENT_NAMES = Object.keys(INSTRUMENTS);
 
-export async function createPlayback({ config, features, duration, video, onEnded, onVideoError }) {
+export async function createPlayback({
+  config, features, duration, video, onEnded, onVideoError, scanPattern = "left-to-right", dataSource = "brightness",
+}) {
   await Tone.start();
   const leadInstrument = INSTRUMENTS[config.lead_instrument];
   const padInstrument = INSTRUMENTS[config.pad_instrument];
   if (!leadInstrument || !padInstrument) throw new Error("Unsupported instrument in music config.");
-  const events = createMusicEvents(config, features, duration);
+  const events = createMusicEvents(config, features, duration, scanPattern, dataSource);
 
   const transport = Tone.getTransport();
   transport.stop();

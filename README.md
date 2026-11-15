@@ -31,9 +31,17 @@ http://localhost:8000/docs.
 
 Choose a curated record, then press play. The browser loads the selected track's
 metadata and feature timeline, plays its local NASA video, and generates music
-from the same measurements. Latitude maps to pitch, temperature to tone color
-and harmony, current speed to rhythm and loudness, and current direction to
-stereo position. The 2D data view marks the scan position.
+from the same measurements. The selected image attribute (brightness or color)
+maps to pitch, latitude to tone color and harmony, current speed to rhythm and
+loudness, and current direction to stereo position. The scanner can sweep
+horizontally, rotate clockwise or counterclockwise, or expand and contract
+from the center; its path controls both the visual markers and the sonification.
+In the player, choose image brightness or image color as the source for pitch.
+Both are whole-frame measurements, interpolated over time, rather than values
+at the scan position. Pitch is scaled to the track's image-data range when it
+varies. Latitude sets each voice's filter tone (north is brighter) and the
+presence-weighted mean latitude under the scan selects the chords.
+This changes the frontend mapping without changing the stored music configuration.
 
 The collection page fetches only album-card metadata. Full track details and
 features are requested when a record is selected; scrolling the collection does

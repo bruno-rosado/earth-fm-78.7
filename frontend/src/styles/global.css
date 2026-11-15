@@ -246,14 +246,21 @@ h1 em { color: var(--mint); font-style: normal; }
 
 .track-video { display: block; width: 100%; height: 100%; object-fit: contain; }
 
-.video-scan-line {
+.video-scan-overlay {
   position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 2px;
-  background: rgba(248, 219, 169, .85);
-  box-shadow: 0 0 8px rgba(248, 219, 169, .55);
+  inset: 0;
+  width: 100%;
+  height: 100%;
   pointer-events: none;
+}
+
+.video-scan-overlay line,
+.video-scan-overlay circle {
+  fill: none;
+  stroke: rgba(248, 219, 169, .85);
+  stroke-width: 1.4;
+  vector-effect: non-scaling-stroke;
+  filter: drop-shadow(0 0 3px rgba(248, 219, 169, .7));
 }
 
 .video-caption {
@@ -270,6 +277,33 @@ h1 em { color: var(--mint); font-style: normal; }
 .player-side { display: flex; flex-direction: column; min-width: 0; }
 .visualizer-heading { display: flex; justify-content: space-between; gap: 10px; color: #d4dfd9; font-size: 9px; }
 .visualizer-heading span + span { color: var(--muted); text-align: right; }
+
+.scan-pattern-control { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 9px; color: var(--muted); font-size: 9px; }
+.scan-pattern-control button {
+  padding: 5px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 9px;
+  cursor: pointer;
+}
+.scan-pattern-control button[aria-pressed="true"] { border-color: var(--mint); background: rgba(165, 225, 199, .12); color: var(--mint); }
+.scan-pattern-control button:focus-visible { outline: 2px solid var(--mint); outline-offset: 2px; }
+.scan-pattern-control button:disabled { cursor: wait; opacity: .6; }
+
+.data-source-control { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px; color: var(--muted); font-size: 9px; }
+.data-source-control select {
+  max-width: 62%;
+  padding: 5px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #101b19;
+  color: #d4dfd9;
+  font: inherit;
+}
+.data-source-control select:focus-visible { outline: 2px solid var(--mint); outline-offset: 2px; }
+.data-source-control select:disabled { cursor: wait; opacity: .6; }
 
 .data-visualizer {
   display: block;

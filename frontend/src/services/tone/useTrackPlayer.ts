@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import { createPlayback, type Playback } from "./musicGeneration.js";
-import { DEFAULT_CONFIG } from "./musicMapping.js";
+import { DEFAULT_CONFIG, type DataSource, type ScanPattern } from "./musicMapping.js";
 import type { Track } from "../../types";
 
 export interface TrackPlayer {
@@ -8,6 +8,8 @@ export interface TrackPlayer {
   starting: boolean;
   playing: boolean;
   volume: number;
+  scanPattern: ScanPattern;
+  dataSource: DataSource;
   error: string;
   notice: string;
   play(): Promise<void>;
@@ -15,6 +17,8 @@ export interface TrackPlayer {
   toggle(): void;
   seek(seconds: number): void;
   setVolume(value: number): void;
+  setScanPattern(pattern: ScanPattern): Promise<void>;
+  setDataSource(source: DataSource): Promise<void>;
   getTime(): number;
 }
 
@@ -25,11 +29,15 @@ export default function useTrackPlayer(
   const [starting, setStarting] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [volume, setVolumeState] = useState(0.8);
+  const [scanPattern, setScanPatternState] = useState<ScanPattern>("left-to-right");
+  const [dataSource, setDataSourceState] = useState<DataSource>("brightness");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const playback = useRef<Playback | null>(null);
   const revision = useRef(0);
   const position = useRef(0);
+  const scanPatternRef = useRef<ScanPattern>("left-to-right");
+  const dataSourceRef = useRef<DataSource>("brightness");
 
   const disposePlayback = useCallback(() => {
     playback.current?.dispose();
@@ -65,6 +73,8 @@ export default function useTrackPlayer(
           features: track.features,
           duration: track.duration,
           video: videoRef.current,
+          scanPattern: scanPatternRef.current,
+          dataSource: dataSourceRef.current,
           onEnded: () => {
             if (revision.current === currentRevision) setPlaying(false);
           },
@@ -113,7 +123,82 @@ export default function useTrackPlayer(
     playback.current?.setVolume(next);
   }, []);
 
+  const reconfigurePlayback = useCallback(async (
+    pattern: ScanPattern,
+    source: DataSource,
+    fallbackError: string,
+  ) => {
+    const currentPlayback = playback.current;
+    const wasPlaying = currentPlayback?.isPlaying() ?? false;
+    const currentTime = currentPlayback?.getTime() ?? position.current;
+    position.current = currentTime;
+    playback.current = null;
+    currentPlayback?.dispose();
+    if (!track || !ready || !wasPlaying) return;
+
+    const currentRevision = revision.current;
+    setStarting(true);
+    setPlaying(false);
+    setError("");
+    try {
+      const created = await createPlayback({
+        config: track.config ?? { ...DEFAULT_CONFIG, track_id: track.id },
+        features: track.features,
+        duration: track.duration,
+        video: videoRef.current,
+        scanPattern: pattern,
+        dataSource: source,
+        onEnded: () => {
+          if (revision.current === currentRevision) setPlaying(false);
+        },
+        onVideoError: () => {
+          if (revision.current === currentRevision) setNotice("Video unavailable; audio will continue.");
+        },
+      });
+      if (revision.current !== currentRevision
+        || scanPatternRef.current !== pattern
+        || dataSourceRef.current !== source) {
+        created.dispose();
+        return;
+      }
+      created.setVolume(volume);
+      created.seek(currentTime);
+      playback.current = created;
+      await created.play();
+      if (revision.current === currentRevision
+        && scanPatternRef.current === pattern
+        && dataSourceRef.current === source) setPlaying(true);
+    } catch (failure) {
+      if (revision.current === currentRevision
+        && scanPatternRef.current === pattern
+        && dataSourceRef.current === source) {
+        setError(failure instanceof Error ? failure.message : fallbackError);
+      }
+    } finally {
+      if (revision.current === currentRevision
+        && scanPatternRef.current === pattern
+        && dataSourceRef.current === source) setStarting(false);
+    }
+  }, [track, ready, videoRef, volume]);
+
+  const setScanPattern = useCallback(async (pattern: ScanPattern) => {
+    if (pattern === scanPatternRef.current) return;
+    scanPatternRef.current = pattern;
+    setScanPatternState(pattern);
+    await reconfigurePlayback(pattern, dataSourceRef.current, "Could not change scanner pattern.");
+  }, [reconfigurePlayback]);
+
+  const setDataSource = useCallback(async (source: DataSource) => {
+    if (source === dataSourceRef.current) return;
+    dataSourceRef.current = source;
+    setDataSourceState(source);
+    await reconfigurePlayback(scanPatternRef.current, source, "Could not change sonification data source.");
+  }, [reconfigurePlayback]);
+
   const getTime = useCallback(() => playback.current?.getTime() ?? position.current, []);
 
-  return { ready, starting, playing, volume, error, notice, play, pause, toggle, seek, setVolume, getTime };
+  return {
+    ready, starting, playing, volume, scanPattern, dataSource, error, notice, play, pause, toggle, seek, setVolume,
+    setScanPattern, setDataSource, getTime,
+  };
 }

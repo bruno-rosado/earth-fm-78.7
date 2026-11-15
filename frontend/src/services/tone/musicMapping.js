@@ -2,16 +2,27 @@
 //
 // The video is an equirectangular world map. A scan line reads each longitude
 // eastward over time, like Hearing Hubble's playhead.
-// Each latitude band is a voice (north = high). In a band, current speed sets how
-// often and how loudly it plays, temperature sets tone color, and east/west flow
-// sets stereo pan. The average temperature under the scan line picks the chords.
+// Each latitude band is a voice. Brightness or color sets pitch; latitude sets
+// tone color and, averaged across the scan, harmony. Current speed sets note
+// frequency and loudness, and east/west flow sets stereo pan.
 
 const SILENT_BELOW = 0.08; // presence under this is land or empty map
-const LEAD_RANGE = 24; // semitones from the southern to the northern band
-const CHORD_WARMTH_MARGIN = 0.06; // hysteresis so chords don't flicker on a boundary
+const LEAD_RANGE = 24; // semitones across the image-data range
+const CHORD_LATITUDE_MARGIN = 0.06; // hysteresis so chords don't flicker on a boundary
 
 export const SCAN_PERIOD = 40; // seconds for one full scan of the map
 export const SCAN_START = 0; // map position (0 = 180°W, 0.5 = 0°) at t = 0
+const SCAN_PATTERNS = ["left-to-right", "right-to-left", "clockwise", "counter-clockwise", "outward", "inward"];
+export const DATA_SOURCES = Object.freeze(["brightness", "color"]);
+const COLOR_WARMTH = {
+  red: 0.875,
+  yellow: 0.625,
+  green: 0.375,
+  cyan: 0.125,
+  blue: 0,
+  magenta: 1,
+  neutral: 0.5,
+};
 
 export const MODES = {
   major: [0, 2, 4, 5, 7, 9, 11],
@@ -23,7 +34,7 @@ export const MODES = {
   pentatonic_minor: [0, 3, 5, 7, 10],
 };
 
-// Chord roots as scale degrees, ordered from the coldest to the warmest sound.
+// Chord roots as scale degrees, ordered from south to north.
 const CHORD_ORDER = {
   major: [5, 1, 3, 0, 4],
   lydian: [5, 1, 3, 0, 4],
@@ -58,10 +69,23 @@ const smoothstep = (low, high, value) => {
   return x * x * (3 - 2 * x);
 };
 
-// Map position (0-1, west to east) under the scan line at a track time.
-export function scanPosition(time) {
-  const u = (SCAN_START + time / SCAN_PERIOD) % 1;
-  return u < 0 ? u + 1 : u;
+export function scanPath(time, pattern = "left-to-right") {
+  if (!SCAN_PATTERNS.includes(pattern)) throw new Error("Unsupported scan pattern.");
+  const phase = ((SCAN_START + time / SCAN_PERIOD) % 1 + 1) % 1;
+  switch (pattern) {
+    case "right-to-left":
+      return { type: "vertical", position: 1 - phase };
+    case "clockwise":
+      return { type: "rotating-line", angle: phase * Math.PI * 2 };
+    case "counter-clockwise":
+      return { type: "rotating-line", angle: -phase * Math.PI * 2 };
+    case "outward":
+      return { type: "ring", radius: phase };
+    case "inward":
+      return { type: "ring", radius: 1 - phase };
+    default:
+      return { type: "vertical", position: phase };
+  }
 }
 
 function sampleIndex(features, time) {
@@ -71,6 +95,23 @@ function sampleIndex(features, time) {
   if (index + 1 >= features.length) return [index, index, 0];
   const left = features[index].t;
   return [index, index + 1, clamp((time - left) / (features[index + 1].t - left))];
+}
+
+function colorWarmth(color) {
+  const weight = Object.entries(COLOR_WARMTH).reduce((sum, [name]) => sum + color[name], 0);
+  if (!Number.isFinite(weight) || weight <= 0) throw new Error("Color data is unavailable for sonification.");
+  return Object.entries(COLOR_WARMTH).reduce(
+    (sum, [name, warmth]) => sum + color[name] * warmth,
+    0,
+  ) / weight;
+}
+
+function sampleDataWarmth(features, time, dataSource) {
+  if (!DATA_SOURCES.includes(dataSource)) throw new Error("Unsupported sonification data source.");
+
+  const [a, b, amount] = sampleIndex(features, time);
+  const read = (sample) => dataSource === "brightness" ? sample.brightness : colorWarmth(sample.color);
+  return lerp(read(features[a]), read(features[b]), amount);
 }
 
 // Cell values at a time and map position, interpolated in time and longitude
@@ -88,6 +129,48 @@ export function sampleCell(features, time, u, row) {
     const atB = lerp(read(features[b], left)[field], read(features[b], right)[field], across);
     return lerp(atA, atB, amount);
   });
+}
+
+const averageCells = (cells) => cells[0].map((_, field) =>
+  cells.reduce((sum, cell) => sum + cell[field], 0) / cells.length);
+
+export function sampleScanCell(features, time, row, pattern = "left-to-right", dataSource = "brightness") {
+  const selectedWarmth = sampleDataWarmth(features, time, dataSource);
+  const withSelectedWarmth = (cell) => [cell[0], selectedWarmth, cell[2], cell[3]];
+  const rows = features[0].grid.length;
+  const columns = features[0].grid[row].length;
+  const y = (row + 0.5) / rows;
+  const path = scanPath(time, pattern);
+
+  if (path.type === "vertical") return withSelectedWarmth(sampleCell(features, time, path.position, row));
+
+  if (path.type === "rotating-line") {
+    const dx = Math.cos(path.angle);
+    const dy = Math.sin(path.angle);
+    if (Math.abs(dy) < 1e-6) {
+      if (Math.abs(y - 0.5) > 0.5 / rows) return [0, 0, 0, 0];
+      return withSelectedWarmth(averageCells(Array.from({ length: columns }, (_, column) =>
+        sampleCell(features, time, (column + 0.5) / columns, row))));
+    }
+    const top = 0.5 + ((row / rows - 0.5) * dx) / dy;
+    const bottom = 0.5 + (((row + 1) / rows - 0.5) * dx) / dy;
+    const left = Math.max(0, Math.min(top, bottom));
+    const right = Math.min(1, Math.max(top, bottom));
+    if (left > right) return [0, 0, 0, 0];
+    const positions = Array.from({ length: columns }, (_, column) => (column + 0.5) / columns)
+      .filter((u) => u >= left && u <= right);
+    if (positions.length === 0) positions.push((left + right) / 2);
+    return withSelectedWarmth(averageCells(positions.map((u) => sampleCell(features, time, u, row))));
+  }
+
+  // Scale both axes so the map corners lie at the outermost ring.
+  const normalizedY = (y - 0.5) * Math.SQRT2;
+  if (Math.abs(normalizedY) > path.radius) return [0, 0, 0, 0];
+  const offset = Math.sqrt(path.radius ** 2 - normalizedY ** 2) / Math.SQRT2;
+  const positions = [0.5 - offset, 0.5 + offset].filter((u, index, all) =>
+    u >= 0 && u <= 1 && (index === 0 || Math.abs(u - all[0]) > 1e-6));
+  if (positions.length === 0) return [0, 0, 0, 0];
+  return withSelectedWarmth(averageCells(positions.map((u) => sampleCell(features, time, u, row))));
 }
 
 export function keyToPitchClass(key) {
@@ -108,7 +191,9 @@ function chordPitchClasses(config, root) {
   return [0, 2, 4].map((offset) => degreeToMidi(config, root + offset) % 12);
 }
 
-function nearestChordTone(midi, pitchClasses) {
+function nearestScaleTone(config, midi) {
+  const key = keyToPitchClass(config.key);
+  const pitchClasses = MODES[config.mode].map((step) => (key + step) % 12);
   for (let distance = 0; distance <= 6; distance++) {
     for (const candidate of [midi - distance, midi + distance]) {
       if (pitchClasses.includes(((candidate % 12) + 12) % 12)) return candidate;
@@ -126,47 +211,48 @@ function voiceChord(config, pitchClasses) {
     .sort((a, b) => a - b);
 }
 
-function normalizer(values) {
+const latitudeLevel = (row, rows) => rows === 1 ? 0.5 : (rows - 1 - row) / (rows - 1);
+
+function normalizer(values, minimumRange) {
   const sorted = [...values].sort((a, b) => a - b);
   const lower = sorted[Math.floor((sorted.length - 1) * 0.1)];
   const upper = sorted[Math.ceil((sorted.length - 1) * 0.9)];
-  return upper - lower < 0.01 ? () => 0.5 : (value) => clamp((value - lower) / (upper - lower));
+  return upper - lower < minimumRange ? clamp : (value) => clamp((value - lower) / (upper - lower));
 }
 
-// Average temperature and how much ocean lies under the scan line.
-function columnClimate(features, time) {
-  const u = scanPosition(time);
+// Presence-weighted latitude and ocean coverage under the scan.
+function columnClimate(features, time, pattern) {
   const rows = features[0].grid.length;
   let presence = 0;
   let warmth = 0;
   for (let row = 0; row < rows; row++) {
-    const [p, temperature] = sampleCell(features, time, u, row);
+    const [p] = sampleScanCell(features, time, row, pattern);
     presence += p;
-    warmth += p * temperature;
+    warmth += p * latitudeLevel(row, rows);
   }
   return { presence: presence / rows, warmth: presence > 0 ? warmth / presence : 0.5 };
 }
 
-function createChords(config, features, duration) {
+function createChords(config, features, duration, pattern) {
   const bar = (60 / config.bpm) * 4;
   const order = CHORD_ORDER[config.mode];
   const bars = [];
   for (let t = 0; t < duration; t += bar) {
     // Look at the middle of the bar too, so a chord reflects the whole bar.
-    const start = columnClimate(features, t);
-    const middle = columnClimate(features, Math.min(duration, t + bar / 2));
+    const start = columnClimate(features, t, pattern);
+    const middle = columnClimate(features, Math.min(duration, t + bar / 2), pattern);
     bars.push({ t, presence: (start.presence + middle.presence) / 2, warmth: (start.warmth + middle.warmth) / 2 });
   }
-  const scaleWarmth = normalizer(bars.map((b) => b.warmth));
+  const scaleLatitude = normalizer(bars.map((bar) => bar.warmth), 0.01);
   let previous = null;
   const chords = [];
   for (const { t, presence, warmth } of bars) {
-    const level = scaleWarmth(warmth);
+    const level = scaleLatitude(warmth);
     let index = Math.min(order.length - 1, Math.floor(level * order.length));
     if (previous !== null && index !== previous) {
-      // Stay on the previous chord unless warmth moved clearly past the boundary.
+      // Stay on the previous chord unless latitude moved clearly past the boundary.
       const boundary = (index > previous ? index : previous) / order.length;
-      if (Math.abs(level - boundary) < CHORD_WARMTH_MARGIN) index = previous;
+      if (Math.abs(level - boundary) < CHORD_LATITUDE_MARGIN) index = previous;
     }
     const root = order[index];
     if (index === previous) {
@@ -206,35 +292,34 @@ export function chordName(pitchClasses) {
 
 // What the scan line passes over across the track, for drawing a timeline:
 // `steps` entries of { warmth, presence } evenly spaced from 0 to duration.
-export function scanTimeline(features, duration, steps) {
-  return Array.from({ length: steps }, (_, i) => columnClimate(features, (duration * i) / Math.max(1, steps - 1)));
+export function scanTimeline(features, duration, steps, pattern = "left-to-right") {
+  return Array.from({ length: steps }, (_, i) =>
+    columnClimate(features, (duration * i) / Math.max(1, steps - 1), pattern));
 }
 
-export function createMusicEvents(config, features, duration) {
+export function createMusicEvents(config, features, duration, pattern = "left-to-right", dataSource = "brightness") {
   if (!features?.length || !features[0].grid?.length || !Number.isFinite(duration) || duration <= 0) {
     throw new Error("Track features and duration are required for playback.");
   }
+  if (!SCAN_PATTERNS.includes(pattern)) throw new Error("Unsupported scan pattern.");
+  if (!DATA_SOURCES.includes(dataSource)) throw new Error("Unsupported sonification data source.");
   if (!MODES[config.mode]) throw new Error("Unsupported mode in music config.");
   const steps = { "4n": 1, "8n": 0.5, "16n": 0.25 };
   const interval = (60 / config.bpm) * steps[config.rhythm_grid];
   if (!Number.isFinite(interval) || interval <= 0) throw new Error("Invalid rhythm settings.");
 
   const rows = features[0].grid.length;
-  const chords = createChords(config, features, duration);
+  const chords = createChords(config, features, duration, pattern);
   const base = degreeToMidi(config, 0);
-  // Row 0 is the northernmost band, so it gets the highest pitch.
-  const rowPitch = (row) => base + Math.round((LEAD_RANGE * (rows - 1 - row)) / Math.max(1, rows - 1));
+  const scalePitch = normalizer(features.map((sample) =>
+    dataSource === "brightness" ? sample.brightness : colorWarmth(sample.color)), 1e-6);
   // Stagger voices so equal densities don't all fire on the same step.
   const phase = Array.from({ length: rows }, (_, row) => (row * 0.618) % 1);
   const leads = [];
-  let chordIndex = 0;
   for (let step = 0; step * interval < duration; step++) {
     const t = step * interval;
-    while (chordIndex + 1 < chords.length && chords[chordIndex + 1].t <= t) chordIndex++;
-    const chord = chords[chordIndex];
-    const u = scanPosition(t);
     for (let row = 0; row < rows; row++) {
-      const [presence, temperature, speed, flow] = sampleCell(features, t, u, row);
+      const [presence, pitchData, speed, flow] = sampleScanCell(features, t, row, pattern, dataSource);
       const audible = smoothstep(SILENT_BELOW, 0.3, presence);
       if (audible === 0) continue;
       phase[row] += lerp(...config.density_range, speed) * audible;
@@ -243,9 +328,9 @@ export function createMusicEvents(config, features, duration) {
       leads.push({
         t,
         row,
-        note: nearestChordTone(rowPitch(row), chord.pitchClasses),
+        note: nearestScaleTone(config, base + Math.round(LEAD_RANGE * scalePitch(pitchData))),
         velocity: lerp(...config.velocity_range, speed) * lerp(0.6, 1, audible),
-        warmth: temperature,
+        warmth: latitudeLevel(row, rows),
         pan: clamp(flow * 0.8, -0.8, 0.8),
       });
     }
