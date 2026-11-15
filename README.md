@@ -34,8 +34,16 @@ format, endpoints, and tests.
 
 ## Using the app
 
-- **Start listening** (or click a record) opens the track and plays it. The camera
-  glides in on the globe.
+- **Search** the bar at the top (or press `/`) for any NASA Earth visualization:
+  hurricanes, sea ice, wildfire smoke, night lights… Results and recommendations
+  come live from NASA's Scientific Visualization Studio.
+- **Click a result** to add it: the backend downloads the video, analyzes every
+  frame, and the track starts playing as soon as it's ready (10–60 s depending on
+  size). Videos over 400 MB or 8 minutes are refused. Imported tracks stay on your
+  machine (`backend/data/library.json` and `backend/media/svs*`, both ignored by git).
+
+- **Start listening** (or click a record in the jukebox) opens the track and plays
+  it. The camera glides in on the globe.
 - **Play/pause:** the big button, the Space bar, or click the globe. Drag the
   timeline to seek; its colors are the sea temperature the scan line will cross,
   and it dims where the scan crosses land.

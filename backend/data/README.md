@@ -1,9 +1,12 @@
 # Track data contract
 
-`tracks.json` is the single source of track data: a list with everything the
-player needs. The server only reads it. Each track has:
+`tracks.json` is the catalog shipped with the repo: a list of tracks with
+everything the player needs. `library.json` (ignored by git) holds tracks imported
+through the app on this machine, in the same shape. The server reads both;
+`GET /api/tracks` skips any track whose local video file is missing. Each track has:
 
-- `id`, `title`, `description`, `cover` and `video` URLs, and `duration` in seconds.
+- `id`, `title`, `description`, `cover` and `video` URLs, `duration` in seconds,
+  and the NASA SVS `nasa_id` and `source` page it came from.
 - `features`: the sonification data (below).
 - `summary`: a compact summary of `features`, computed by `build_tracks.py`. The
   UI sends it to Gemini on a vibe change instead of the full features.
@@ -39,8 +42,14 @@ The player reads one column at a time (the longitude facing the viewer). See
 
 | Method | URL | Response |
 | --- | --- | --- |
-| GET | `/api/tracks` | `tracks.json` as-is |
+| GET | `/api/tracks` | Catalog plus imported tracks, each as described above |
+| DELETE | `/api/tracks/{track_id}` | Remove an imported track and its media; 404 for catalog tracks |
 | POST | `/api/music-config` | Vibe change: send `{track, summary, prompt}`; returns a new config. Nothing is saved. |
+| GET | `/api/search?q=…&limit=12` | NASA SVS search results that have a downloadable video, with a `track` field when already imported |
+| GET | `/api/recommendations` | Cards for the IDs in `recommendations.json` |
+| POST | `/api/imports` | `{ "nasa_id": 5665 }` → 202 with a job; the video is downloaded, analyzed, and given a default config in the background |
+| GET | `/api/imports/{job_id}` | Job status: `queued`, `downloading`, `analyzing`, `done` (with `track`), or `error` |
+| GET | `/api/thumbs/{nasa_id}.jpg` | NASA's preview image resized to 640 px and cached in `thumbs/` |
 
 See [`../MUSIC_CONFIG.md`](../MUSIC_CONFIG.md) for environment setup and the
 Tone.js config contract.

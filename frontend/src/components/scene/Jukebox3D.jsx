@@ -16,6 +16,8 @@ const Jukebox3D = ({ tracks, selectedTrack, onSelect, hidden = false }) => {
     useFrame((state, delta) => {
         const group = groupRef.current;
         group.position.y = THREE.MathUtils.lerp(group.position.y, hidden ? -5 : -1.9, 1 - Math.exp(-delta * 3));
+        // Sit under the globe (right of center, beside the hero text) on wide screens.
+        group.position.x = THREE.MathUtils.lerp(group.position.x, state.size.width < 760 ? 0 : 0.9, 1 - Math.exp(-delta * 3));
         group.visible = group.position.y > -4.8;
     });
 
@@ -40,7 +42,7 @@ const Jukebox3D = ({ tracks, selectedTrack, onSelect, hidden = false }) => {
 
         if (hidden) return undefined;
         const onWheel = (e) => {
-            if (e.target.closest?.('.player-overlay')) return; // scrolling the player panel
+            if (e.target.closest?.('.ui-layer, .topbar')) return; // scrolling the overlay UI
             const now = Date.now();
             if (now - lastWheel.current < 150) return; // one step per 150ms (wheels fire a lot)
             lastWheel.current = now;

@@ -33,6 +33,9 @@ function fitUvs(geometry, size) {
     return geometry;
 }
 
+// Long NASA titles get cut at a word boundary so they fit on the card.
+const shortTitle = (title) => (title.length <= 44 ? title : `${title.slice(0, 44).replace(/\s+\S*$/, "")}…`);
+
 // index: this card's place in the list. activeIndex: the card in the middle.
 const AlbumCard3D = ({ track, index, activeIndex, isSelected, onSelect, radius, spacing }) => {
     const groupRef = useRef();
@@ -68,6 +71,8 @@ const AlbumCard3D = ({ track, index, activeIndex, isSelected, onSelect, radius, 
         g.position.x = Math.sin(angle) * radius;
         g.position.z = Math.cos(angle) * radius - radius;
         g.rotation.y = -angle; // turn to face the camera
+        // Cards shrink as they move away from the middle, so a long row stays compact.
+        g.scale.setScalar(1 - Math.min(0.45, Math.abs(smooth.current) * 0.16));
         // Hover lifts the card slightly.
         const targetY = hovered ? 0.15 : 0;
         g.position.y = THREE.MathUtils.lerp(g.position.y, targetY, Math.min(1, delta * 10));
@@ -93,7 +98,7 @@ const AlbumCard3D = ({ track, index, activeIndex, isSelected, onSelect, radius, 
             </mesh>
             {cover ? (
                 <Text position={[0, -SIZE / 2 + 0.1, 0.01]} fontSize={0.1} maxWidth={SIZE - 0.2} textAlign="center" color="white" anchorX="center" anchorY="bottom" outlineWidth={0.012} outlineColor="black" outlineOpacity={0.8}>
-                    {track.title}
+                    {shortTitle(track.title)}
                 </Text>
             ) : (
                 <Text position={[0, 0, 0.01]} fontSize={0.13} maxWidth={SIZE - 0.2} textAlign="center" color="white" anchorX="center" anchorY="middle">

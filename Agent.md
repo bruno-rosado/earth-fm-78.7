@@ -135,6 +135,9 @@ still need a manual browser check.
   (presence, temperature, current speed, flow direction); the music config is
   schema version 2. See `backend/data/README.md` and `backend/MUSIC_CONFIG.md`.
 - Playback, pause, seek, and audio/video sync were verified in a browser.
+- Any NASA SVS video can now be searched and imported from the app
+  (`backend/services/nasa.py`, `backend/services/imports.py`,
+  `backend/routes/search.py`). Imports are per machine and ignored by git.
 - For real-data integration, start from the latest `main` on a new branch, or
   review Dev 2's branch if it already contains the required files.
 - Gemini now generates the separate music config used with the original timed

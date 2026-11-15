@@ -12,7 +12,7 @@ import json
 from backend.routes.tracks import TRACKS_PATH
 from backend.services.music_config import MusicConfigError, generate_config, summarize_features
 
-METADATA = ("id", "title", "description", "cover", "video", "duration")
+METADATA = ("id", "title", "description", "cover", "video", "duration", "nasa_id", "source")
 
 
 def build(tracks, regenerate=(), prompt=""):

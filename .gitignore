@@ -6,3 +6,8 @@ dist
 docs/*
 tests/*
 /assets/visualizations/ecco2_sst_flow.mp4
+backend/data/thumbs/*.jpg
+# Imported NASA tracks live only on this machine
+backend/data/library.json
+backend/media/svs*
+backend/data/features/svs*
