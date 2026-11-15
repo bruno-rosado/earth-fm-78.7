@@ -78,3 +78,23 @@ export interface TrackSearchResults {
   cached: boolean;
   fetched_at: string;
 }
+
+export interface NasaVideo {
+  nasa_id: number;
+  title: string;
+  description: string;
+  release_date: string;
+  thumbnail: string | null;
+  source: string;
+  video: { width: number; height: number | null; format: string; size_mb: number | null; too_large: boolean };
+  track: CatalogTrack | null;
+}
+
+export interface ImportJob {
+  id: string;
+  nasa_id: number;
+  status: "queued" | "downloading" | "transcoding" | "analyzing" | "done" | "error";
+  progress: number;
+  message: string;
+  track: CatalogTrack | null;
+}

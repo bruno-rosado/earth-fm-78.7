@@ -1,0 +1,439 @@
+{
+ "id": 3912,
+ "title": "Global Sea Surface Currents and Temperature",
+ "description": "This visualization shows sea surface current flows. The flows are colored by corresponding sea surface temperature data. This visualization is rendered for display on very high resolution devices like",
+ "release_date": "2012-03-16T10:00:00-04:00",
+ "main_image": {
+  "url": "http://svs.gsfc.nasa.gov/vis/a000000/a003900/a003912/flat_global_ecco2_2028x1024.25000.jpg",
+  "width": 2048,
+  "height": 1024,
+  "media_type": "Image"
+ },
+ "media_groups": [
+  {
+   "widget": "Basic text with HTML",
+   "items": []
+  },
+  {
+   "widget": "Video player",
+   "items": [
+    {
+     "instance": {
+      "media_type": "Image",
+      "filename": "flat_global_ecco2_2028x1024.25000.jpg",
+      "width": 2048,
+      "height": 1024,
+      "url": "http://svs.gsfc.nasa.gov/vis/a000000/a003900/a003912/flat_global_ecco2_2028x1024.25000.jpg"
+     }
+    },
+    {
+     "instance": {
+      "media_type": "Image",
+      "filename": "flat_global_ecco2_2028x1024.25000_web.png",
+      "width": 320,
+      "height": 160,
+      "url": "http://svs.gsfc.nasa.gov/vis/a000000/a003900/a003912/flat_global_ecco2_2028x1024.25000_web.png"
+     }
+    },
+    {
+     "instance": {
+      "media_type": "Image",
+      "filename": "flat_global_ecco2_2028x1024.25000_thm.png",
+      "width": 80,
+      "height": 40,
+      "url": "http://svs.gsfc.nasa.gov/vis/a000000/a003900/a003912/flat_global_ecco2_2028x1024.25000_thm.png"
+     }
+    },
+    {
+     "instance": {
+      "media_type": "Image",
+      "filename": "flat_global_ecco2_2028x1024.25000_searchweb.png",
+      "width": 180,
+      "height": 320,
+      "url": "http://svs.gsfc.nasa.gov/vis/a000000/a003900/a003912/flat_global_ecco2_2028x1024.25000_searchweb.png"
+     }
+    },
+    {
+     "instance": {
+      "media_type": "Frames",
+      "filename": "orig",
+      "width": 2048,
+      "height": 1024,
+      "url": "http://svs.gsfc.nasa.gov/vis/a000000/a003900/a003912/frames/2048x1024_1x1_30p/orig/"
+     }
+    },
+    {
+     "instance": {
+      "media_type": "Movie",
+      "filename": "ecco2_sst_flow.webmhd.webm",
+      "width": 960,
+      "height": 540,
+      "url": "http://svs.gsfc.nasa.gov/vis/a000000/a003900/a003912/ecco2_sst_flow.webmhd.webm"
+     }
+    },
+    {
+     "instance": {
+      "media_type": "Frames",
+      "filename": "with_colorbar",
+      "width": 2048,
+      "height": 1024,
+      "url": "http://svs.gsfc.nasa.gov/vis/a000000/a003900/a003912/frames/2048x1024_1x1_30p/with_colorbar/"
+     }
+    },
+    {
+     "instance": {
+      "media_type": "Movie",
+      "filename": "ecco2_sst_flow.mp4",
+      "width": 2048,
+      "height": 1024,
+      "url": "http://svs.gsfc.nasa.gov/vis/a000000/a003900/a003912/ecco2_sst_flow.mp4"
+     }
+    },
+    {
+     "instance": {
+      "media_type": "Movie",
+      "filename": "flat_global_ecco2_2028x1024_comp_p30.mp4",
+      "width": 2048,
+      "height": 1024,
+      "url": "http://svs.gsfc.nasa.gov/vis/a000000/a003900/a003912/flat_global_ecco2_2028x1024_comp_p30.mp4"
+     }
+    },
+    {
+     "instance": {
+      "media_type": "Movie",
+      "filename": "ecco2_sst_flow.m4v",
+      "width": 640,
+      "height": 320,
+      "url": "http://svs.gsfc.nasa.gov/vis/a000000/a003900/a003912/ecco2_sst_flow.m4v"
+     }
+    },
+    {
+     "instance": {
+      "media_type": "Frames",
+      "filename": "6840x3420_1x1_30p",
+      "width": 6840,
+      "height": 3420,
+      "url": "http://svs.gsfc.nasa.gov/vis/a000000/a003900/a003912/frames/6840x3420_1x1_30p/"
+     }
+    },
+    {
+     "instance": {
+      "media_type": "Presentation",
+      "filename": "the_motions_of_the_oceans.pptx",
+      "width": 0,
+      "height": 0,
+      "url": "http://svs.gsfc.nasa.gov/vis/a000000/a003900/a003912/the_motions_of_the_oceans.pptx"
+     }
+    },
+    {
+     "instance": {
+      "media_type": "Presentation",
+      "filename": "the_motions_of_the_oceans.key",
+      "width": 0,
+      "height": 0,
+      "url": "http://svs.gsfc.nasa.gov/vis/a000000/a003900/a003912/the_motions_of_the_oceans.key"
+     }
+    },
+    {
+     "instance": {
+      "media_type": "Movie",
+      "filename": "Oceanflows-UHD-2160.mp4",
+      "width": 3840,
+      "height": 2160,
+      "url": "http://svs.gsfc.nasa.gov/vis/a000000/a003900/a003912/Oceanflows-UHD-2160.mp4"
+     }
+    },
+    {
+     "instance": {
+      "media_type": "HyperwallShow",
+      "filename": "multiple-bigmovie.hwshow",
+      "width": 0,
+      "height": 0,
+      "url": "http://svs.gsfc.nasa.gov/vis/a000000/a001800/a001801/multiple-bigmovie.hwshow"
+     }
+    }
+   ]
+  },
+  {
+   "widget": "Single image",
+   "items": [
+    {
+     "instance": {
+      "media_type": "Image",
+      "filename": "ecco2_and_grid_crop1.png",
+      "width": 320,
+      "height": 180,
+      "url": "http://svs.gsfc.nasa.gov/vis/a000000/a003900/a003912/ecco2_and_grid_crop1.png"
+     }
+    },
+    {
+     "instance": {
+      "media_type": "Image",
+      "filename": "ecco2_and_grid_crop1.jpg",
+      "width": 320,
+      "height": 180,
+      "url": "http://svs.gsfc.nasa.gov/vis/a000000/a003900/a003912/ecco2_and_grid_crop1.jpg"
+     }
+    },
+    {
+     "instance": {
+      "media_type": "Image",
+      "filename": "ecco2_and_grid_crop1.tif",
+      "width": 320,
+      "height": 180,
+      "url": "http://svs.gsfc.nasa.gov/vis/a000000/a003900/a003912/ecco2_and_grid_crop1.tif"
+     }
+    }
+   ]
+  },
+  {
+   "widget": "Single image",
+   "items": [
+    {
+     "instance": {
+      "media_type": "Image",
+      "filename": "ecco2_and_grid_crop2.png",
+      "width": 320,
+      "height": 180,
+      "url": "http://svs.gsfc.nasa.gov/vis/a000000/a003900/a003912/ecco2_and_grid_crop2.png"
+     }
+    },
+    {
+     "instance": {
+      "media_type": "Image",
+      "filename": "ecco2_and_grid_crop2.jpg",
+      "width": 320,
+      "height": 180,
+      "url": "http://svs.gsfc.nasa.gov/vis/a000000/a003900/a003912/ecco2_and_grid_crop2.jpg"
+     }
+    },
+    {
+     "instance": {
+      "media_type": "Image",
+      "filename": "ecco2_and_grid_crop2.tif",
+      "width": 320,
+      "height": 180,
+      "url": "http://svs.gsfc.nasa.gov/vis/a000000/a003900/a003912/ecco2_and_grid_crop2.tif"
+     }
+    }
+   ]
+  },
+  {
+   "widget": "Single image",
+   "items": [
+    {
+     "instance": {
+      "media_type": "Image",
+      "filename": "ecco2_and_grid.jpg",
+      "width": 6840,
+      "height": 3420,
+      "url": "http://svs.gsfc.nasa.gov/vis/a000000/a003900/a003912/ecco2_and_grid.jpg"
+     }
+    },
+    {
+     "instance": {
+      "media_type": "Image",
+      "filename": "ecco2_and_grid_web.png",
+      "width": 320,
+      "height": 160,
+      "url": "http://svs.gsfc.nasa.gov/vis/a000000/a003900/a003912/ecco2_and_grid_web.png"
+     }
+    },
+    {
+     "instance": {
+      "media_type": "Image",
+      "filename": "ecco2_and_grid.tif",
+      "width": 6840,
+      "height": 3420,
+      "url": "http://svs.gsfc.nasa.gov/vis/a000000/a003900/a003912/ecco2_and_grid.tif"
+     }
+    }
+   ]
+  },
+  {
+   "widget": "Video player",
+   "items": [
+    {
+     "instance": {
+      "media_type": "Image",
+      "filename": "global-5x3-3-montage.png",
+      "width": 6840,
+      "height": 2304,
+      "url": "http://svs.gsfc.nasa.gov/vis/a000000/a003900/a003912/global-5x3-3-montage.png"
+     }
+    },
+    {
+     "instance": {
+      "media_type": "Image",
+      "filename": "global_5x3-3_hw_print.jpg",
+      "width": 345,
+      "height": 1024,
+      "url": "http://svs.gsfc.nasa.gov/vis/a000000/a003900/a003912/global_5x3-3_hw_print.jpg"
+     }
+    },
+    {
+     "instance": {
+      "media_type": "Movie",
+      "filename": "flat_global_ecco2_6840x3420_768p30-b1.webm",
+      "width": 1368,
+      "height": 768,
+      "url": "http://svs.gsfc.nasa.gov/vis/a000000/a003900/a003912/flat_global_ecco2_6840x3420_768p30-b1.webm"
+     }
+    },
+    {
+     "instance": {
+      "media_type": "Movie",
+      "filename": "flat_global_ecco2_6840x3420_768p30-d1.mp4",
+      "width": 1368,
+      "height": 768,
+      "url": "http://svs.gsfc.nasa.gov/vis/a000000/a003900/a003912/flat_global_ecco2_6840x3420_768p30-d1.mp4"
+     }
+    },
+    {
+     "instance": {
+      "media_type": "Movie",
+      "filename": "flat_global_ecco2_6840x3420_768p30-c1.mp4",
+      "width": 1368,
+      "height": 768,
+      "url": "http://svs.gsfc.nasa.gov/vis/a000000/a003900/a003912/flat_global_ecco2_6840x3420_768p30-c1.mp4"
+     }
+    },
+    {
+     "instance": {
+      "media_type": "Movie",
+      "filename": "flat_global_ecco2_6840x3420_768p30-c2.mp4",
+      "width": 1368,
+      "height": 768,
+      "url": "http://svs.gsfc.nasa.gov/vis/a000000/a003900/a003912/flat_global_ecco2_6840x3420_768p30-c2.mp4"
+     }
+    },
+    {
+     "instance": {
+      "media_type": "Movie",
+      "filename": "flat_global_ecco2_6840x3420_768p30-a1.mp4",
+      "width": 1368,
+      "height": 768,
+      "url": "http://svs.gsfc.nasa.gov/vis/a000000/a003900/a003912/flat_global_ecco2_6840x3420_768p30-a1.mp4"
+     }
+    },
+    {
+     "instance": {
+      "media_type": "Movie",
+      "filename": "flat_global_ecco2_6840x3420_768p30-e3.mp4",
+      "width": 1368,
+      "height": 768,
+      "url": "http://svs.gsfc.nasa.gov/vis/a000000/a003900/a003912/flat_global_ecco2_6840x3420_768p30-e3.mp4"
+     }
+    },
+    {
+     "instance": {
+      "media_type": "Movie",
+      "filename": "flat_global_ecco2_6840x3420_768p30-b1.mp4",
+      "width": 1368,
+      "height": 768,
+      "url": "http://svs.gsfc.nasa.gov/vis/a000000/a003900/a003912/flat_global_ecco2_6840x3420_768p30-b1.mp4"
+     }
+    },
+    {
+     "instance": {
+      "media_type": "Movie",
+      "filename": "flat_global_ecco2_6840x3420_768p30-b2.mp4",
+      "width": 1368,
+      "height": 768,
+      "url": "http://svs.gsfc.nasa.gov/vis/a000000/a003900/a003912/flat_global_ecco2_6840x3420_768p30-b2.mp4"
+     }
+    },
+    {
+     "instance": {
+      "media_type": "Movie",
+      "filename": "flat_global_ecco2_6840x3420_768p30-b3.mp4",
+      "width": 1368,
+      "height": 768,
+      "url": "http://svs.gsfc.nasa.gov/vis/a000000/a003900/a003912/flat_global_ecco2_6840x3420_768p30-b3.mp4"
+     }
+    },
+    {
+     "instance": {
+      "media_type": "Movie",
+      "filename": "flat_global_ecco2_6840x3420_768p30-e1.mp4",
+      "width": 1368,
+      "height": 768,
+      "url": "http://svs.gsfc.nasa.gov/vis/a000000/a003900/a003912/flat_global_ecco2_6840x3420_768p30-e1.mp4"
+     }
+    },
+    {
+     "instance": {
+      "media_type": "Movie",
+      "filename": "flat_global_ecco2_6840x3420_768p30-c3.mp4",
+      "width": 1368,
+      "height": 768,
+      "url": "http://svs.gsfc.nasa.gov/vis/a000000/a003900/a003912/flat_global_ecco2_6840x3420_768p30-c3.mp4"
+     }
+    },
+    {
+     "instance": {
+      "media_type": "Movie",
+      "filename": "flat_global_ecco2_6840x3420_768p30-e2.mp4",
+      "width": 1368,
+      "height": 768,
+      "url": "http://svs.gsfc.nasa.gov/vis/a000000/a003900/a003912/flat_global_ecco2_6840x3420_768p30-e2.mp4"
+     }
+    },
+    {
+     "instance": {
+      "media_type": "Movie",
+      "filename": "flat_global_ecco2_6840x3420_768p30-d3.mp4",
+      "width": 1368,
+      "height": 768,
+      "url": "http://svs.gsfc.nasa.gov/vis/a000000/a003900/a003912/flat_global_ecco2_6840x3420_768p30-d3.mp4"
+     }
+    },
+    {
+     "instance": {
+      "media_type": "Movie",
+      "filename": "flat_global_ecco2_6840x3420_768p30-d2.mp4",
+      "width": 1368,
+      "height": 768,
+      "url": "http://svs.gsfc.nasa.gov/vis/a000000/a003900/a003912/flat_global_ecco2_6840x3420_768p30-d2.mp4"
+     }
+    },
+    {
+     "instance": {
+      "media_type": "Movie",
+      "filename": "flat_global_ecco2_6840x3420_768p30-a3.mp4",
+      "width": 1368,
+      "height": 768,
+      "url": "http://svs.gsfc.nasa.gov/vis/a000000/a003900/a003912/flat_global_ecco2_6840x3420_768p30-a3.mp4"
+     }
+    },
+    {
+     "instance": {
+      "media_type": "Movie",
+      "filename": "flat_global_ecco2_6840x3420_768p30-a2.mp4",
+      "width": 1368,
+      "height": 768,
+      "url": "http://svs.gsfc.nasa.gov/vis/a000000/a003900/a003912/flat_global_ecco2_6840x3420_768p30-a2.mp4"
+     }
+    },
+    {
+     "instance": {
+      "media_type": "HyperwallShow",
+      "filename": "test-multiple-movies.hwshow.hwshow",
+      "width": 0,
+      "height": 0,
+      "url": "http://svs.gsfc.nasa.gov/hyperwall/data/users/esokolow/sst.hwshow/svs/db/hyperwall/data/users/esokolow/test-multiple-movies.hwshow/svs/db/hyperwall/data/users/esokolow/test-multiple-movies.hwshow.hwshow"
+     }
+    },
+    {
+     "instance": {
+      "media_type": "HyperwallShow",
+      "filename": "test-multiple-movies.hwshow.hwshow",
+      "width": 0,
+      "height": 0,
+      "url": "http://svs.gsfc.nasa.gov/hyperwall/data/users/esokolow/test-multiple-movies.hwshow/svs/db/hyperwall/data/users/esokolow/test-multiple-movies.hwshow.hwshow"
+     }
+    }
+   ]
+  }
+ ]
+}

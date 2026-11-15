@@ -1,7 +1,7 @@
-import type { CatalogTrack, FeatureSample, TrackDetails, TrackSearchResults } from "../types";
+import type { CatalogTrack, FeatureSample, ImportJob, NasaVideo, TrackDetails, TrackSearchResults } from "../types";
 
-async function requestJson<T>(url: string, signal?: AbortSignal): Promise<T> {
-  const response = await fetch(url, { signal });
+async function requestJson<T>(url: string, signal?: AbortSignal, options?: RequestInit): Promise<T> {
+  const response = await fetch(url, { ...options, signal });
   const body: unknown = await response.json();
 
   if (!response.ok) {
@@ -26,3 +26,16 @@ export const getTrackFeatures = (id: string, signal?: AbortSignal) =>
 
 export const searchTrack = (id: string, signal?: AbortSignal) =>
   requestJson<TrackSearchResults>(`/api/tracks/${encodeURIComponent(id)}/search`, signal);
+
+export const searchNasa = (query: string, signal?: AbortSignal) =>
+  requestJson<NasaVideo[]>(`/api/search?${new URLSearchParams({ q: query, limit: "8" })}`, signal);
+
+export const startImport = (nasaId: number, signal?: AbortSignal) =>
+  requestJson<ImportJob>("/api/imports", signal, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ nasa_id: nasaId }),
+  });
+
+export const getImport = (id: string, signal?: AbortSignal) =>
+  requestJson<ImportJob>(`/api/imports/${encodeURIComponent(id)}`, signal);

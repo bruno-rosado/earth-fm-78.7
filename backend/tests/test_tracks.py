@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 
 from backend.main import app
 from backend.routes import tracks
+from backend.services import imports
 
 CATALOG_PATH = Path(__file__).resolve().parents[1] / "data" / "tracks.json"
 
@@ -34,6 +35,9 @@ class TrackRouteTests(unittest.TestCase):
         self.catalog_path = Path(self.temp.name) / "tracks.json"
         self.catalog_path.write_text(json.dumps([TRACK]), encoding="utf-8")
         patcher = patch.object(tracks, "TRACKS_PATH", self.catalog_path)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        patcher = patch.object(imports, "DATA_DIR", Path(self.temp.name))
         patcher.start()
         self.addCleanup(patcher.stop)
         self.client = TestClient(app)
@@ -74,8 +78,8 @@ class TrackRouteTests(unittest.TestCase):
         self.assertEqual(self.client.get("/api/tracks/missing").status_code, 404)
         self.assertEqual(self.client.get("/api/tracks/missing/features").status_code, 404)
 
-    def test_curated_mvp_does_not_expose_import_or_live_generation_routes(self):
-        for path in ("/api/search", "/api/imports", "/api/music-config"):
+    def test_music_styles_are_not_generated_by_a_live_api_route(self):
+        for path in ("/api/music-config",):
             with self.subTest(path=path):
                 self.assertEqual(self.client.get(path).status_code, 404)
 

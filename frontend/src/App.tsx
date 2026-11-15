@@ -3,6 +3,7 @@ import AlbumGrid from "./components/AlbumGrid";
 import AccessibilitySettings from "./components/AccessibilitySettings";
 import PlayerPanel from "./components/PlayerPanel";
 import ReadAloud from "./components/ReadAloud";
+import NasaSearch from "./components/NasaSearch";
 import { getTrack, getTrackFeatures, getTracks } from "./services/api";
 import useTrackPlayer from "./services/tone/useTrackPlayer";
 import { describePage } from "./services/accessibility.js";
@@ -94,6 +95,10 @@ export default function App() {
     if (previousId) document.getElementById(`track-${previousId}`)?.focus();
   };
 
+  const addToLibrary = useCallback((imported: CatalogTrack) => {
+    setTracks((current) => [...current.filter((item) => item.id !== imported.id), imported]);
+  }, []);
+
   return (
     <div className="app-shell">
       <a className="skip-link" href="#main-content">Skip to main content</a>
@@ -114,6 +119,8 @@ export default function App() {
       <AccessibilitySettings open={settingsOpen} settings={settings} speech={speech} onClose={closeSettings} onReadPage={() => speech.read(describePage(tracks))} />
       <p className="sr-only" role="status" aria-atomic="true">{speech.message}</p>
       <main id="main-content" tabIndex={-1}>
+
+      <NasaSearch onReady={addToLibrary} onOpen={selectTrack} />
 
       <section className="intro">
         <p className="eyebrow"><span className="status-dot" /> A jukebox for our living planet</p>

@@ -1,7 +1,8 @@
 # Curated track data
 
-`tracks.json` is the complete, shipped catalog. There is no runtime import
-library or user-upload workflow. Each track stores:
+`tracks.json` is the shipped catalog. NASA search imports are saved separately
+in `library.json` on this machine, and `/api/tracks` combines both catalogs.
+Each track stores:
 
 - `id`, `title`, `description`, `cover`, `video`, `duration`, `nasa_id`, and
   `source`.
@@ -26,12 +27,24 @@ Each feature sample contains whole-frame measurements:
 | GET | `/api/tracks/{id}` | Selected track metadata, summary, and default music config |
 | GET | `/api/tracks/{id}/features` | The selected track's precomputed feature timeline |
 | GET | `/media/{filename}` | Local video and cover assets |
+| GET | `/api/search?q=ocean` | NASA SVS videos, annotated with existing library tracks |
+| POST | `/api/imports` | Start or reuse a background job with body `{"nasa_id": 3912}` |
+| GET | `/api/imports/{job_id}` | Download, conversion, extraction progress, or a finished track |
 
 The catalog request deliberately omits video URLs and feature grids. The
 frontend fetches track details and features only after a user selects an album.
 Videos and covers are served from `backend/media/`. Local NASA assets matching
 `svs*` are git-ignored, so machines playing those tracks need the corresponding
 files present in that directory.
+
+Use the search bar at the top of the page and select **Add to library**.
+The backend downloads the video, converts it to H.264 MP4, runs the current
+extractor, and saves its features and summary in `library.json`. The track
+appears in the collection when ready; select **Play track** to open it in the
+existing sonification player. Imports use the player's built-in music style
+and require no Gemini or NASA API key. Files persist across server restarts;
+unfinished jobs can be retried after a restart. Imports are limited to 400 MiB
+and eight minutes. `imageio-ffmpeg` supplies the conversion binary.
 
 ## Adding or updating a track
 

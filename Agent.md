@@ -3,14 +3,19 @@
 Earth FM 78.7 is a curated NASA sonification jukebox. Keep the product
 focused on the album catalog, selected-track playback, local media, and
 precomputed feature data. The frontend is React + TypeScript; playback and the
-2D feature visualizer run in the browser. Do not add a 3D globe, runtime NASA
-search/import flow, or WebSockets.
+2D feature visualizer run in the browser. NASA search and background imports
+let users extend their local library. Do not add a 3D globe or WebSockets.
 
 ## Data and API
 
 - `backend/data/tracks.json` stores each curated track's metadata, features,
   summary, and default config.
 - `backend/media/` contains the local video and cover assets served at `/media`.
+- `backend/data/library.json` persists imported tracks in the same shape as the
+  shipped catalog; imported media and library data are ignored by git.
+- `GET /api/search?q=...` searches NASA SVS for downloadable videos.
+- `POST /api/imports` queues a NASA ID for download, conversion, and extraction;
+  `GET /api/imports/{id}` reports progress. No NASA API key is needed.
 - `GET /api/tracks` returns card metadata only.
 - `GET /api/tracks/{id}` returns selected-track metadata, summary, and config.
 - `GET /api/tracks/{id}/features` returns its preprocessed feature timeline.

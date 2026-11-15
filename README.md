@@ -3,7 +3,8 @@
 Earth FM 78.7 is a curated jukebox of NASA visualizations. The backend
 serves preprocessed track data and local video assets; a typed React player
 renders the video and a 2D data view while Tone.js sonifies the measurements in
-the browser. Playback uses a shared local clock, not a WebSocket connection.
+the browser. Search NASA from the top of the page to download more visualizations
+and prepare their data for the same player. Playback uses a shared local clock.
 
 ## Run it
 
@@ -49,6 +50,25 @@ The collection page fetches only album-card metadata. Full track details and
 features are requested when a record is selected; scrolling the collection does
 not make additional API calls. Music configurations are built ahead of time,
 so no AI provider or API key is needed to run the app.
+
+## Search NASA and add to your library
+
+Use **Search NASA** at the top of the page (or press `/` to focus it). Results
+come from NASA's Scientific Visualization Studio API and show downloadable
+videos, previews, and file sizes. Choose **Add to library** to download a video,
+convert it to browser-friendly H.264 MP4, and extract its features. Download,
+conversion, and analysis progress stay visible while you browse. When ready,
+the track appears in the collection; choose **Play track** to open it.
+
+Imported tracks use the current brightness/color mapping and scanner controls,
+with the player's default music style. No NASA or Gemini key is required.
+Repeated imports reuse an existing local track or active job. Search results
+are cached for ten minutes; imported tracks and media persist on this machine
+across restarts in ignored `backend/data/library.json` and `backend/media/svs*`.
+The shipped `tracks.json` is unchanged. A restart interrupts unfinished jobs;
+search for the video and retry. One video is processed at a time, with limits
+of eight minutes and 400 MiB per video. Install the updated backend requirements
+to include `imageio-ffmpeg`, which supplies the conversion binary.
 
 ## Accessibility
 

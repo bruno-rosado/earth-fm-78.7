@@ -1,7 +1,11 @@
-import json
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
+
+if __package__ == "routes":
+    from services import imports
+else:
+    from ..services import imports
 
 TRACKS_PATH = Path(__file__).resolve().parents[1] / "data" / "tracks.json"
 CATALOG_FIELDS = ("id", "title", "description", "cover", "duration", "source")
@@ -11,7 +15,7 @@ router = APIRouter(prefix="/tracks", tags=["tracks"])
 
 
 def _read_catalog():
-    return json.loads(TRACKS_PATH.read_text(encoding="utf-8"))
+    return imports.read_tracks(TRACKS_PATH)
 
 
 def _find_track(track_id):
