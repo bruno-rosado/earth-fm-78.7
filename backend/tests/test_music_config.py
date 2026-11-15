@@ -68,10 +68,13 @@ class MusicConfigTests(unittest.TestCase):
 
     def test_track_list_has_everything_and_summary_is_current(self):
         tracks = self.client.get("/api/tracks").json()
-        self.assertEqual(tracks, TRACKS)
+        # The list also includes this machine's imports (library.json), if any.
+        catalog_ids = {track["id"] for track in TRACKS}
+        self.assertEqual([t for t in tracks if t["id"] in catalog_ids], TRACKS)
         for track in tracks:
             self.assertEqual(track["summary"], service.summarize_features(track["features"]))
-            service.MusicConfig.model_validate(track["config"])
+            if track["config"] is not None:  # imports fall back to no config if Gemini fails
+                service.MusicConfig.model_validate(track["config"])
 
     def test_vibe_change_writes_nothing(self):
         self.mock_gemini()

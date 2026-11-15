@@ -1,18 +1,16 @@
 # Dev 1: Backend API (Python/FastAPI)
 You make the server that hands out album data. You work in `backend/`.
 
-1. **Run the hello world.** See the README.
-   Done when http://localhost:8000/api/hello shows the message.
-2. **Write the fake data with the team.** Create `backend/data/tracks.json` (a list with one album) and `backend/data/features/demo.json` (about 20 time points). Use the shapes from HOW_IT_WORKS.
+1. **Run the app.** See the README.
+   Done when http://localhost:8000/api/tracks returns the track list.
+2. **Write the fake data with the team.** Create `backend/data/tracks.json`: a list with one track whose `features` hold about 20 time points. Use the shapes from HOW_IT_WORKS.
    Done when all 4 devs agree on the shapes.
 3. **Add `GET /api/tracks`** in `main.py`. Read `data/tracks.json` and return it.
    Done when http://localhost:8000/api/tracks shows the list.
-4. **Add `GET /api/tracks/{id}`.** Return one album, or a 404 if the id doesn't exist.
-5. **Add `GET /api/tracks/{id}/features`.** Return `data/features/{id}.json`.
-6. **Serve the video and image files.** Add `app.mount("/media", StaticFiles(directory="media"))` and put the files in `backend/media/`.
+4. **Serve the video and image files.** Add `app.mount("/media", StaticFiles(directory="media"))` and put the files in `backend/media/`.
    Done when a video plays at http://localhost:8000/media/yourfile.mp4.
-7. **Tell Devs 3 and 4 the URLs.** Then help Dev 2 drop in the real data on Day 3.
-8. **Extra:** use the Claude API to pick the music settings (key, tempo, instrument) from the features.
+5. **Tell Devs 3 and 4 the URLs.** Then help Dev 2 drop in the real data on Day 3.
+6. **Extra:** use an LLM to pick the music settings (key, tempo, instrument) from the features.
 
 FastAPI tutorial: https://fastapi.tiangolo.com/tutorial/first-steps/
 
@@ -27,6 +25,6 @@ FastAPI tutorial: https://fastapi.tiangolo.com/tutorial/first-steps/
 - **You're blocked by Dev 2** only for real data on Day 3. Fake data unblocks everything else.
 
 ## Most critical to nail down (first 2 hours)
-1. **The exact JSON shape** of `tracks.json` and `features.json`. Commit one example of each.
-2. **The URL list:** `/api/tracks`, `/api/tracks/{id}`, `/api/tracks/{id}/features`, `/media/<file>`.
+1. **The exact JSON shape** of a track in `tracks.json`, including its `features`. Commit one example.
+2. **The URL list:** `/api/tracks`, `/api/music-config`, `/media/<file>`.
 3. **Where files live:** `backend/data/` and `backend/media/`.
