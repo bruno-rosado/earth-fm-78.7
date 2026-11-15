@@ -37,8 +37,8 @@ format, endpoints, and tests.
 - **Search** the bar at the top (or press `/`) for any NASA Earth visualization:
   hurricanes, sea ice, wildfire smoke, night lights… Results and recommendations
   come live from NASA's Scientific Visualization Studio.
-- **Click a result** to add it: the backend downloads the video, analyzes every
-  frame, and the track starts playing as soon as it's ready (10–60 s depending on
+- **Click a result** to add it: the backend downloads the video, re-encodes it
+  (H.264, at most 1280 px wide, 30 fps), analyzes every frame, and the track starts playing as soon as it's ready (10–60 s depending on
   size). Videos over 400 MB or 8 minutes are refused. Imported tracks stay on your
   machine (`backend/data/library.json` and `backend/media/svs*`, both ignored by git).
 

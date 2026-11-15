@@ -47,8 +47,8 @@ The player reads one column at a time (the longitude facing the viewer). See
 | POST | `/api/music-config` | Vibe change: send `{track, summary, prompt}`; returns a new config. Nothing is saved. |
 | GET | `/api/search?q=…&limit=12` | NASA SVS search results that have a downloadable video, with a `track` field when already imported |
 | GET | `/api/recommendations` | Cards for the IDs in `recommendations.json` |
-| POST | `/api/imports` | `{ "nasa_id": 5665 }` → 202 with a job; the video is downloaded, analyzed, and given a default config in the background |
-| GET | `/api/imports/{job_id}` | Job status: `queued`, `downloading`, `analyzing`, `done` (with `track`), or `error` |
+| POST | `/api/imports` | `{ "nasa_id": 5665 }` → 202 with a job; the video is downloaded, re-encoded (H.264, at most 1280 px wide, 30 fps, no audio), analyzed, and given a default config in the background |
+| GET | `/api/imports/{job_id}` | Job status: `queued`, `downloading`, `transcoding`, `analyzing`, `done` (with `track`), or `error` |
 | GET | `/api/thumbs/{nasa_id}.jpg` | NASA's preview image resized to 640 px and cached in `thumbs/` |
 
 See [`../MUSIC_CONFIG.md`](../MUSIC_CONFIG.md) for environment setup and the

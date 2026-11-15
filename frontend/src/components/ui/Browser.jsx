@@ -10,7 +10,7 @@ function ImportState({ job }) {
   if (!job) return null;
   if (job.status === "error") return <span className="card-state is-error">{job.message}</span>;
   const percent = Math.round((job.progress ?? 0) * 100);
-  const label = { queued: "Queued", downloading: "Downloading", analyzing: "Analyzing", done: "Ready" }[job.status] ?? job.status;
+  const label = { queued: "Queued", downloading: "Downloading", transcoding: "Optimizing", analyzing: "Analyzing", done: "Ready" }[job.status] ?? job.status;
   return (
     <span className="card-state">
       <span className="card-progress"><span style={{ width: `${job.status === "queued" ? 4 : percent}%` }} /></span>

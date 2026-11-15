@@ -7,7 +7,7 @@ export default function ImportToasts({ jobs, hidden, onDismiss }) {
       {active.map(([nasaId, job]) => (
         <li key={nasaId} className={`toast ${job.status === "error" ? "is-error" : ""}`}>
           <span className="toast-text">
-            {job.status === "error" ? "Import failed" : job.status === "analyzing" ? "Analyzing video" : "Downloading from NASA"}
+            {job.status === "error" ? "Import failed" : job.status === "transcoding" ? "Optimizing video" : job.status === "analyzing" ? "Analyzing video" : "Downloading from NASA"}
             <small>{job.message}</small>
           </span>
           {job.status === "error"

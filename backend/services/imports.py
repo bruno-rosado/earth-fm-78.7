@@ -7,6 +7,7 @@ library.json in the same shape (metadata, features, summary, default config), wh
 has its own library and never commits hundreds of megabytes of video."""
 
 import json
+import logging
 import sys
 import threading
 import uuid
@@ -25,6 +26,9 @@ MEDIA_DIR = BACKEND_DIR / "media"
 if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 from pipeline.extract import extract_features, video_duration  # noqa: E402
+from pipeline.transcode import transcode  # noqa: E402
+
+logger = logging.getLogger(__name__)
 
 MAX_DURATION = 8 * 60  # seconds; longer videos take too long to analyze
 
@@ -154,6 +158,20 @@ def _download(url, destination, job, phase_message):
             leftover.unlink(missing_ok=True)
 
 
+def _optimize(source, destination, job):
+    """Shrink the download to a light H.264 mp4. On any failure keep the original."""
+    _update(job, status="transcoding", progress=0.0, message="Optimizing video for playback")
+    try:
+        transcode(source, destination, video_duration(source),
+                  progress=lambda f: _update(job, progress=f, message=f"Optimizing video for playback {f:.0%}"))
+    except Exception as error:  # noqa: BLE001 - the original still works
+        logger.warning("Could not transcode %s, keeping the original: %s", source.name, error)
+        return source
+    if source != destination:
+        source.unlink(missing_ok=True)
+    return destination
+
+
 def _run(job):
     nasa_id = job["nasa_id"]
     track_id = track_id_for(nasa_id)
@@ -172,6 +190,7 @@ def _run(job):
         except (nasa.NasaError, OSError):
             cover_path = None
 
+        video_path = _optimize(video_path, MEDIA_DIR / f"{track_id}.mp4", job)
         duration = video_duration(video_path)
         if duration > MAX_DURATION:
             video_path.unlink(missing_ok=True)

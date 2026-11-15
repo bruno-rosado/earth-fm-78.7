@@ -104,7 +104,10 @@ const Globe = ({ videoUrl, playbackVideoRef }) => {
 
         const texture = new THREE.VideoTexture(video);
         texture.colorSpace = THREE.SRGBColorSpace;
-        texture.anisotropy = 4;
+        // Video is re-uploaded every frame: skip mipmaps and anisotropy (wasted GPU work).
+        texture.generateMipmaps = false;
+        texture.minFilter = THREE.LinearFilter;
+        texture.magFilter = THREE.LinearFilter;
         // Only show the video once it has a frame. If it fails we just stay on Earth.
         const onReady = () => setVideoTexture(texture);
         const onError = () => setVideoTexture(null);

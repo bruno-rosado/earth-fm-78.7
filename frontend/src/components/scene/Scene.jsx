@@ -20,7 +20,8 @@ const Scene = ({ tracks, selectedTrack, onSelect, videoRef }) => {
     return (
         // Canvas has no size of its own; it fills this wrapper (see scene.css).
         <div className="scene-container">
-            <Canvas camera={{ position: [-1.1, 0.15, 6.4], fov: 50 }} dpr={[1, 2]}>
+            {/* Capped at 1.5x: 2x Retina with bloom post-processing is too expensive for 60 fps video. */}
+            <Canvas camera={{ position: [-1.1, 0.15, 6.4], fov: 50 }} dpr={[1, 1.5]}>
                 <color attach="background" args={["#02010a"]} />
 
                 {/* ambientLight = soft light everywhere; directionalLight = like the sun. */}
