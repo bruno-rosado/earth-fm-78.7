@@ -6,6 +6,7 @@ dist
 docs/*
 tests/*
 /assets/visualizations/ecco2_sst_flow.mp4
+backend/media/ecco2_sst_flow.webmhd.webm
 backend/data/thumbs/*.jpg
 # Local NASA video copies may be large and are managed per machine.
 backend/data/library.json
