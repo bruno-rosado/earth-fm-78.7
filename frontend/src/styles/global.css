@@ -486,6 +486,8 @@ summary { cursor: pointer; min-height: 44px; padding-block: 10px; font-weight: 6
 .track-search-results a { color: var(--mint); text-decoration: underline; text-underline-offset: 3px; overflow-wrap: anywhere; }
 .track-search-results p { margin: 0; color: var(--muted); font-size: .9375rem; line-height: 1.7; }
 .track-ai-answer { margin: 20px 0; padding: 22px; border: 1px solid var(--line); border-radius: 8px; }
+.explanation-reading-actions { margin-bottom: 20px; }
+.track-search-heading > .access-actions { flex: 0 1 auto; }
 .track-ai-answer p { margin: 0 0 16px; font-size: 1rem; line-height: 1.85; overflow-wrap: anywhere; }
 .track-ai-answer p:last-child { margin-bottom: 0; }
 .track-ai-answer h4 { margin: 20px 0 10px; font-family: var(--display); font-size: 1.125rem; line-height: 1.5; }

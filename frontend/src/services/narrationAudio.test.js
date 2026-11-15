@@ -103,6 +103,41 @@ test("settings changed during preparation are applied before the first play", as
   h.controller.dispose();
 });
 
+test("long explanations read every chunk with the same transcript and current settings", async () => {
+  const h = harness();
+  const text = Array.from({ length: 800 }, (_, i) => `Sentence ${i} describes the ocean.`).join(" ");
+  await h.controller.speak(text);
+  h.controller.updatePreferences({ speechRate: 1.3, speechVolume: 0.4 });
+  const staleEnded = h.media[0].onended;
+  while (h.last().speaking) {
+    await h.media.at(-1).onended();
+    assert.equal(h.last().text, text);
+  }
+  assert.ok(h.loads.length > 1);
+  assert.ok(h.loads.every(({ text: clip }) => clip.length <= 5000));
+  assert.equal(h.loads.map(({ text: clip }) => clip).join(" "), text);
+  assert.equal(h.media[1].playbackRate, 1.3);
+  assert.equal(h.media[1].volume, 0.4);
+  assert.ok(h.resources.every((resource) => resource.released === 1));
+  const count = h.loads.length;
+  await staleEnded();
+  assert.equal(h.loads.length, count);
+  assert.equal(h.ducking.at(-1), false);
+  h.controller.dispose();
+});
+
+test("stop reading cancels all remaining parts of a long explanation", async () => {
+  const h = harness();
+  await h.controller.speak("A long explanation. ".repeat(600));
+  const ended = h.media[0].onended;
+  h.controller.cancel();
+  await ended();
+  assert.equal(h.loads.length, 1);
+  assert.equal(h.last().speaking, false);
+  assert.equal(h.resources[0].released, 1);
+  h.controller.dispose();
+});
+
 test("provider, decode, and autoplay errors retain text and restore music", async () => {
   const h = harness({ loadAudio: async () => { throw new Error("Voice unavailable. Transcript remains."); } });
   await h.controller.speak("Written fallback.");

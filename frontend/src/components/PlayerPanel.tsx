@@ -201,7 +201,7 @@ export default function PlayerPanel({ track, videoRef, player, preferences, spee
       <details className="sound-description" id="visual-description"><summary>What this visualization sounds like</summary><p>{SOUND_LEGEND}</p><p>The percentages above describe image brightness, contrast, and change between sampled frames. Color is supplemented by these written values and requested narration.</p></details>
 
       <a className="source-link" href={track.source} target="_blank" rel="noreferrer">View source at NASA SVS <span className="sr-only">(opens in a new tab)</span><span aria-hidden>↗</span></a>
-      <TrackSearch key={track.id} trackId={track.id} />
+      <TrackSearch key={track.id} trackId={track.id} speech={speech} />
     </section>
   );
 }

@@ -2,6 +2,8 @@ import { createElement } from "react";
 import Markdown from "react-markdown";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
+import { unified } from "unified";
+import remarkParse from "remark-parse";
 
 const heading = ({ children }) => createElement("h4", null, children);
 const components = {
@@ -28,4 +30,36 @@ export function FormattedAiText({ text }) {
     rehypePlugins: [[rehypeKatex, { trust: false, strict: "ignore", throwOnError: false, output: "htmlAndMathml", maxExpand: 1000, maxSize: 10 }]],
     components,
   }, text);
+}
+
+// Read labels and prose once, without Markdown punctuation, link URLs, or TeX
+// commands. The spoken transcript uses the same Markdown structure as the view.
+const speechParser = unified().use(remarkParse).use(remarkMath);
+const spokenMath = (value) => value
+  .replace(/\\frac\s*\{([^{}]*)\}\s*\{([^{}]*)\}/g, "$1 over $2")
+  .replace(/\\(?:text|mathrm|operatorname)\s*\{([^{}]*)\}/g, "$1")
+  .replace(/\^\s*\{?\s*\\circ\s*\}?|[°∘]/g, " degrees ")
+  .replace(/degrees\s*C\b/g, "degrees Celsius")
+  .replace(/degrees\s*F\b/g, "degrees Fahrenheit")
+  .replace(/\\(?:approx|sim)\b|~/g, " approximately ")
+  .replace(/\\times\b/g, " times ")
+  .replace(/\\cdot\b/g, " times ")
+  .replace(/\^\s*\{([^{}]*)\}|\^([a-zA-Z0-9]+)/g, " to the power $1$2 ")
+  .replace(/\\([a-zA-Z]+)\b/g, " $1 ")
+  .replace(/[{}]/g, "");
+
+export function explanationNarration(text) {
+  const read = (node) => {
+    if (node.type === "html" || node.type === "image" || node.type === "imageReference" || node.type === "definition") return "";
+    if (node.type === "math" || node.type === "inlineMath") return spokenMath(node.value);
+    if (typeof node.value === "string") return node.value;
+    const separator = ["root", "list", "listItem", "blockquote", "table", "tableRow"].includes(node.type) ? "\n" : "";
+    return (node.children ?? []).map(read).join(separator);
+  };
+  const content = read(speechParser.parse(text))
+    .replace(/~/g, " approximately ")
+    .replace(/[°∘]\s*C\b/g, " degrees Celsius")
+    .replace(/[°∘]\s*F\b/g, " degrees Fahrenheit")
+    .replace(/\s+/g, " ").trim();
+  return content ? `AI-generated explanation. ${content}` : "";
 }

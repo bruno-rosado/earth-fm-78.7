@@ -119,6 +119,14 @@ Answers render Markdown and LaTeX math, including temperature notation such as
 formats existing cached answers. Math includes an accessible MathML equivalent;
 raw HTML, unsafe links, and remote Markdown images are disabled.
 
+Once an explanation appears, **Read explanation aloud** uses the existing
+narration system and your saved speed and volume. Markdown link labels and
+temperature notation become spoken text; reading does not call SerpAPI again.
+Long explanations play in consecutive clips with the full transcript available
+in **Read aloud**. **Stop reading** remains available beside **Hide explanation**,
+and hiding the explanation keeps narration playing. Selecting another track or
+closing the player stops it, just like the other read-aloud controls.
+
 Add this to `backend/.env`, then restart the backend:
 
 ```dotenv

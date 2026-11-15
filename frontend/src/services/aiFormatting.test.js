@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { FormattedAiText } from "./aiFormatting.js";
+import { explanationNarration, FormattedAiText } from "./aiFormatting.js";
 
 const render = (text) => renderToStaticMarkup(createElement(FormattedAiText, { text }));
 
@@ -54,4 +54,21 @@ test("malformed math leaves a readable fallback without crashing the explanation
   const html = render(String.raw`Before $\frac{broken}$ after.`);
   assert.match(html, /Before/);
   assert.match(html, /after/);
+});
+
+test("explanation narration reads prose and temperatures without Markdown or TeX", () => {
+  const speech = explanationNarration(String.raw`## Ocean colors
+
+**Green** ($10^{\circ }\text{C}$ to $20^{\circ }\text{C}$), yellow (\~ $25^{\circ }\text{C}$), red (32°C).
+
+[Read more at NASA](https://svs.gsfc.nasa.gov/3912/).
+
+![Tracking image](https://example.com/image.png)`);
+  assert.match(speech, /^AI-generated explanation\. Ocean colors/);
+  assert.match(speech, /10 degrees Celsius to 20 degrees Celsius/);
+  assert.match(speech, /approximately 25 degrees Celsius/);
+  assert.match(speech, /32 degrees Celsius/);
+  assert.match(speech, /Read more at NASA/);
+  assert.doesNotMatch(speech, /https:|Tracking image|\\text|\\circ|\$|\*\*|##/);
+  assert.equal(explanationNarration(""), "");
 });

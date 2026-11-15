@@ -1,5 +1,22 @@
 import { sanitizePreferences } from "./accessibility.js";
 
+// Keep clips below the existing narration endpoint's 6,000-character limit.
+// Split on sentence/word boundaries and retain the full transcript in the UI.
+function narrationClips(content) {
+  const clips = [];
+  let remaining = content;
+  while (remaining.length > 5000) {
+    const prefix = remaining.slice(0, 5000);
+    let end = Math.max(prefix.lastIndexOf(". "), prefix.lastIndexOf("? "), prefix.lastIndexOf("! ")) + 1;
+    if (end < 2500) end = prefix.lastIndexOf(" ");
+    if (end < 1) end = 5000;
+    clips.push(remaining.slice(0, end).trim());
+    remaining = remaining.slice(end).trimStart();
+  }
+  if (remaining) clips.push(remaining);
+  return clips;
+}
+
 // Cache audio bytes, not utterances. Every playback owns and releases its URL.
 export function createNarrationLoader({ fetchAudio = globalThis.fetch, makeUrl = (blob) => URL.createObjectURL(blob), revokeUrl = (url) => URL.revokeObjectURL(url), maxEntries = 4 } = {}) {
   const cache = new Map();
@@ -79,35 +96,49 @@ export function createNarrationController({ createAudio, loadAudio, onState, onD
       duck(false);
       onState({ text, speaking: false, message });
     };
-    onState({ text, speaking: true, message: "Preparing narration…" });
-    request = new AbortController();
-    timer = setTimeout(() => finish("Narration took too long to prepare. The transcript is still available."), startTimeout);
-    try {
-      const prepared = await loadAudio(text, { signal: request.signal });
-      if (!owned()) { prepared.release(); return; }
-      resource = prepared;
-      audio = createAudio();
-      applyPreferences();
-      audio.preload = "auto";
-      audio.src = resource.url;
-      let announced = false;
-      const playing = () => {
-        if (!owned() || announced) return;
-        announced = true;
-        clearTimeout(timer);
-        duck(true);
-        onState({ text, speaking: true, message: "Reading aloud. Music is quieter during narration." });
-      };
-      audio.onplaying = playing;
-      audio.onwaiting = () => { if (owned()) { announced = false; onState({ text, speaking: true, message: "Buffering narration…" }); } };
-      audio.onended = () => finish("Reading finished. The transcript is still available.");
-      audio.onerror = () => finish("Narration could not play. The transcript is still available.");
-      await audio.play();
-      if (owned()) playing();
-    } catch (error) {
-      if (owned()) finish(error?.name === "NotAllowedError" ? "Your browser blocked audio. Press Read aloud again to start narration."
-        : error instanceof Error ? error.message : "Narration could not start. The transcript is still available.");
-    }
+    const clips = narrationClips(text);
+    let next = 0;
+    let clipRevision = 0;
+    const playClip = async () => {
+      if (!owned()) return;
+      const clip = ++clipRevision;
+      const current = () => owned() && clip === clipRevision;
+      release();
+      onState({ text, speaking: true, message: next ? "Preparing the next part of the narration…" : "Preparing narration…" });
+      request = new AbortController();
+      timer = setTimeout(() => finish("Narration took too long to prepare. The transcript is still available."), startTimeout);
+      try {
+        const prepared = await loadAudio(clips[next++], { signal: request.signal });
+        if (!current()) { prepared.release(); return; }
+        resource = prepared;
+        audio = createAudio();
+        applyPreferences();
+        audio.preload = "auto";
+        audio.src = resource.url;
+        let announced = false;
+        const playing = () => {
+          if (!current() || announced) return;
+          announced = true;
+          clearTimeout(timer);
+          duck(true);
+          onState({ text, speaking: true, message: "Reading aloud. Music is quieter during narration." });
+        };
+        audio.onplaying = playing;
+        audio.onwaiting = () => { if (current()) { announced = false; onState({ text, speaking: true, message: "Buffering narration…" }); } };
+        audio.onended = () => {
+          if (!current()) return;
+          if (next < clips.length) return playClip();
+          finish("Reading finished. The transcript is still available.");
+        };
+        audio.onerror = () => { if (current()) finish("Narration could not play. The transcript is still available."); };
+        await audio.play();
+        if (current()) playing();
+      } catch (error) {
+        if (current()) finish(error?.name === "NotAllowedError" ? "Your browser blocked audio. Press Read aloud again to start narration."
+          : error instanceof Error ? error.message : "Narration could not start. The transcript is still available.");
+      }
+    };
+    return playClip();
   };
   const updatePreferences = (options) => {
     if (disposed) return;
