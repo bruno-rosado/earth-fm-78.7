@@ -1,7 +1,7 @@
 // The LLM chooses the style; the same style and data always make the same notes.
 //
-// The video is an equirectangular world map. A scan line reads the longitude that
-// faces the viewer as the globe turns westward, like Hearing Hubble's playhead.
+// The video is an equirectangular world map. A scan line reads each longitude
+// westward over time, like Hearing Hubble's playhead.
 // Each latitude band is a voice (north = high). In a band, current speed sets how
 // often and how loudly it plays, temperature sets tone color, and east/west flow
 // sets stereo pan. The average temperature under the scan line picks the chords.
@@ -10,8 +10,8 @@ const SILENT_BELOW = 0.08; // presence under this is land or empty map
 const LEAD_RANGE = 24; // semitones from the southern to the northern band
 const CHORD_WARMTH_MARGIN = 0.06; // hysteresis so chords don't flicker on a boundary
 
-export const SCAN_PERIOD = 40; // seconds for one full turn of the globe
-export const SCAN_START = 0.1; // map position (0 = 180°W, 0.5 = 0°) facing the viewer at t = 0
+export const SCAN_PERIOD = 40; // seconds for one full scan of the map
+export const SCAN_START = 0.1; // map position (0 = 180°W, 0.5 = 0°) at t = 0
 
 export const MODES = {
   major: [0, 2, 4, 5, 7, 9, 11],
@@ -34,7 +34,7 @@ const CHORD_ORDER = {
   pentatonic_minor: [0, 2, 3, 4],
 };
 
-// Used when no Gemini style has been generated for a track.
+// Used when a track does not have a stored music style.
 export const DEFAULT_CONFIG = {
   schema_version: 2,
   bpm: 72,
@@ -62,12 +62,6 @@ const smoothstep = (low, high, value) => {
 export function scanPosition(time) {
   const u = (SCAN_START - time / SCAN_PERIOD) % 1;
   return u < 0 ? u + 1 : u;
-}
-
-// The globe's y rotation that puts a map position in front of the camera.
-// three.js spheres face +z at u = 0.25, and rotating by +θ moves u by -θ/2π.
-export function globeRotationFor(u) {
-  return 2 * Math.PI * (0.25 - u);
 }
 
 function sampleIndex(features, time) {

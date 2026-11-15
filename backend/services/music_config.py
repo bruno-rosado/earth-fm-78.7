@@ -53,31 +53,6 @@ class MusicConfig(BaseModel):
         return self
 
 
-class TrackInfo(BaseModel):
-    """Track metadata sent for a vibe change (features stay in the browser)."""
-
-    model_config = ConfigDict(extra="ignore")
-    id: str = Field(pattern=r"^[A-Za-z0-9_-]+$")
-    title: str = Field(max_length=300)
-    description: str = Field(default="", max_length=2000)
-    duration: float = Field(ge=0)
-
-
-class GenerationRequest(BaseModel):
-    """What the UI sends to change the vibe: the track, its summary, and a prompt."""
-
-    model_config = ConfigDict(extra="forbid")
-    track: TrackInfo
-    summary: dict
-    prompt: str = Field(default="", max_length=1000)
-
-    @model_validator(mode="after")
-    def limit_summary_size(self):
-        if len(json.dumps(self.summary)) > 20000:
-            raise ValueError("Summary is too large")
-        return self
-
-
 class MusicConfigError(Exception):
     def __init__(self, status_code, message):
         super().__init__(message)

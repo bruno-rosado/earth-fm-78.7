@@ -3,8 +3,8 @@
 This is the only step that writes track data; the server just reads the file.
 Run from the repository root after extracting a track:
     backend/.venv/bin/python -m backend.pipeline.build_tracks [--regenerate ID ...] [--prompt "..."]
-It recomputes each summary and asks Gemini for a default config only where one is
-missing (or for the IDs given to --regenerate).
+It recomputes each summary and optionally asks Gemini for a default config where
+one is missing (or for the IDs given to --regenerate).
 """
 import argparse
 import json
@@ -22,8 +22,14 @@ def build(tracks, regenerate=(), prompt=""):
         config = track.get("config")
         if config is None or track["id"] in regenerate or track.get("summary") not in (None, summary):
             metadata = {key: track[key] for key in METADATA if key in track}
-            config = generate_config(metadata, summary, prompt).model_dump()
-            print(f"{track['id']}: default config {config['key']} {config['mode']} at {config['bpm']} bpm")
+            try:
+                config = generate_config(metadata, summary, prompt).model_dump()
+                print(f"{track['id']}: default config {config['key']} {config['mode']} at {config['bpm']} bpm")
+            except MusicConfigError as error:
+                if error.status_code != 503:
+                    raise
+                config = None
+                print(f"{track['id']}: {error} Using the built-in player style.")
         built.append({**track, "summary": summary, "config": config})
     return built
 

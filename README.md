@@ -1,88 +1,74 @@
-# earth-fm-78.7
+# Earth Frequencies
 
-Earth Frequencies: a jukebox where each track is a NASA Earth visualization turned into music, playing over a spinning 3D Earth.
+Earth Frequencies is a curated jukebox of NASA visualizations. The backend
+serves preprocessed track data and local video assets; a typed React player
+renders the video and a 2D data view while Tone.js sonifies the measurements in
+the browser. Playback uses a shared local clock, not a WebSocket connection.
 
-## Run it (two terminals)
+## Run it
 
-Backend (Python):
-```
+Start the backend:
+
+```bash
 cd backend
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
 .venv/bin/uvicorn main:app --reload --port 8000
 ```
 
-Frontend (React):
-```
+In another terminal, start the frontend:
+
+```bash
 cd frontend
 npm install
 npm run dev
 ```
-Open http://localhost:5173 for the frontend and http://localhost:8000/docs to try the backend API.
 
-## How it sounds
+Open http://localhost:5173. The backend API documentation is at
+http://localhost:8000/docs.
 
-Like NASA's Hearing Hubble, a scan line reads the map as the globe turns: latitude
-sets pitch, sea temperature sets tone color and chords, current speed sets rhythm
-and loudness, and current direction sets stereo pan. Select a track and press play
-(or Space).
+## Listening
 
-Optionally add `GEMINI_API_KEY` to `backend/.env` (see `backend/.env.example`) and
-use **Style → Generate** to have Gemini choose the key, mode, tempo, and instruments.
-See [backend/MUSIC_CONFIG.md](backend/MUSIC_CONFIG.md) for the mapping, config
-format, endpoints, and tests.
+Choose a curated record, then press play. The browser loads the selected track's
+metadata and feature timeline, plays its local NASA video, and generates music
+from the same measurements. Latitude maps to pitch, temperature to tone color
+and harmony, current speed to rhythm and loudness, and current direction to
+stereo position. The 2D data view marks the scan position.
 
-## Using the app
+The collection page fetches only album-card metadata. Full track details and
+features are requested when a record is selected; scrolling the collection does
+not make additional API calls. Music configurations are built ahead of time,
+so no AI provider or API key is needed to run the app.
 
-- **Search** the bar at the top (or press `/`) for any NASA Earth visualization:
-  hurricanes, sea ice, wildfire smoke, night lights… Results and recommendations
-  come live from NASA's Scientific Visualization Studio.
-- **Click a result** to add it: the backend downloads the video, analyzes every
-  frame, and the track starts playing as soon as it's ready (10–60 s depending on
-  size). Videos over 400 MB or 8 minutes are refused. Imported tracks stay on your
-  machine (`backend/data/library.json` and `backend/media/svs*`, both ignored by git).
+## Add a curated visualization
 
-- **Start listening** (or click a record in the jukebox) opens the track and plays
-  it. The camera glides in on the globe.
-- **Play/pause:** the big button, the Space bar, or click the globe. Drag the
-  timeline to seek; its colors are the sea temperature the scan line will cross,
-  and it dims where the scan crosses land.
-- **On the globe:** the scan line marks the longitude being played; each note
-  ripples out where its data came from; the ring around the planet is the live
-  audio spectrum.
-- **Readout (right):** scan longitude, ocean region, current chord, and a meter per
-  latitude voice colored by water temperature.
-- **Style:** pick a preset or describe a mood for Gemini. **✕** or Escape returns
-  to the track list.
+Place a local video and cover in `backend/media/`, add its metadata to
+`backend/data/tracks.json`, and run the feature extraction and build steps
+described in [the track data contract](backend/data/README.md). Optionally set
+`GEMINI_API_KEY` in `backend/.env` to generate a default music style during the
+offline build. The key is never used by the running player.
 
 ## Tests
 
-Backend tests live in `backend/tests/`. Run them from the repository root:
-```
+From the repository root:
+
+```bash
 backend/.venv/bin/python -m unittest discover -s backend/tests -t . -v
+cd frontend
+npm test
+npm run build
 ```
-Frontend tests: `cd frontend && npm test`.
 
-## What's here
+## Project layout
+
+```text
+backend/routes/tracks.py          REST catalog, details, and feature timeline
+backend/pipeline/                 Offline video analysis and track building
+backend/services/music_config.py  Optional offline style generation
+backend/data/tracks.json          Curated track catalog
+backend/media/                    Locally served video and cover assets
+frontend/src/                     TypeScript UI, Canvas 2D visualization, Tone.js player
+docs/HOW_IT_WORKS.md              End-to-end data and playback flow
 ```
-backend/main.py        backend app setup
-backend/routes/        API: tracks, music-config, NASA search and imports
-backend/services/      Gemini music config, NASA SVS client, import jobs
-backend/data/          tracks.json (shipped) and library.json (imports): every track
-                       with features, summary, default style
-backend/pipeline/      offline scripts that build tracks.json (extract, build_tracks)
-backend/media/         videos and cover images served at /media
-frontend/src/          React app: 3D scene and Tone.js music engine
-docs/                  HOW_IT_WORKS.md + one step-by-step guide per dev
-```
-Start with `docs/HOW_IT_WORKS.md`, then open your `docs/DEVx.md`.
-Add new files only when you need them. Each guide says which ones to create.
 
-## Media files
-
-Place videos and cover images in `backend/media/`. For example,
-`backend/media/clouds.mp4` is available at
-http://localhost:8000/media/clouds.mp4. Use `/media/clouds.mp4` as the video URL
-in track metadata; the frontend development server forwards `/media` to the backend.
-Use local copies: the browser needs same-origin video to texture the globe and
-range requests to seek.
+For the API and data shape, see [backend/data/README.md](backend/data/README.md).

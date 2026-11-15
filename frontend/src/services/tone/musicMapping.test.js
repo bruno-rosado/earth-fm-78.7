@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
-  chordName, createMusicEvents, scanTimeline, DEFAULT_CONFIG, globeRotationFor, MODES, sampleCell, scanPosition, SCAN_PERIOD,
+  chordName, createMusicEvents, scanTimeline, DEFAULT_CONFIG, MODES, sampleCell, scanPosition, SCAN_PERIOD,
 } from "./musicMapping.js";
 
 const samples = JSON.parse(readFileSync(new URL("../../../../backend/data/tracks.json", import.meta.url)))
@@ -15,15 +15,12 @@ function flatGrid(cell, rows = 4, cols = 6) {
 }
 const sample = (t, grid) => ({ t, brightness: 0.2, motion: 0, contrast: 0, color: {}, grid });
 
-test("scan line turns westward one revolution per period, matching the globe rotation", () => {
+test("scan line moves westward through every longitude once per period", () => {
   assert.ok(Math.abs(scanPosition(0) - scanPosition(SCAN_PERIOD)) < 1e-9);
   assert.ok(scanPosition(1) < scanPosition(0));
   for (const t of [0, 7.3, 55]) {
     const u = scanPosition(t);
     assert.ok(u >= 0 && u < 1);
-    // At this rotation, u = 0.25 - θ/2π is the longitude facing the camera.
-    const facing = (0.25 - globeRotationFor(u) / (2 * Math.PI) + 1) % 1;
-    assert.ok(Math.abs(facing - u) < 1e-9);
   }
 });
 
