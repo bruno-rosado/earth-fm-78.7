@@ -485,7 +485,7 @@ html[data-text-size="large"] { font-size: 20px; }
 html[data-text-size="extra"] { font-size: 24px; }
 html[data-reduced-motion="true"] *, html[data-reduced-motion="true"] *::before, html[data-reduced-motion="true"] *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 html[data-reduced-motion="true"] .cover-flow-item .album-card, html[data-reduced-motion="true"] .album-card:hover { transform: none; }
-html[data-reduced-motion="true"] .video-scan-line { display: none; }
+html[data-reduced-motion="true"] :is(.video-scan-line, .video-scan-overlay) { display: none; }
 html[data-reduced-motion="true"] .status-dot { box-shadow: none; }
 
 html[data-contrast="high"] { color: #fff; background: #000; --muted: #e6e6e6; --line: #b3b3b3; --mint: #fff59a; --control: #fff; --focus: #fff59a; }

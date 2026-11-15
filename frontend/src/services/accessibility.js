@@ -22,7 +22,7 @@ export function formatSpokenTime(seconds) {
 }
 
 const plain = (value) => typeof value === "string" ? value.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim() : "";
-export const SOUND_LEGEND = "The scan reads the image from side to side. Higher image rows use higher notes. More visual flow produces more frequent, louder notes. Color warmth changes tone and harmony. Horizontal flow changes stereo position. These are features of the rendered visualization, not direct temperature or current-speed measurements.";
+export const SOUND_LEGEND = "The selected scanner pattern reads the image. Pitch follows the selected image brightness or color. Image rows shape tone color and harmony. More visual flow produces more frequent, louder notes. Horizontal flow changes stereo position. These are features of the rendered visualization, not direct temperature or current-speed measurements.";
 export const KEYBOARD_HELP = "Use Tab to move between controls, Enter or Space to activate buttons, and arrow keys to adjust sliders. Escape closes accessibility settings.";
 
 export function describeTrack(track) {

@@ -102,7 +102,6 @@ export default function PlayerPanel({ track, videoRef, player, preferences, spee
             <span>Visual data field</span>
             <span>Color warmth · visual flow</span>
           </div>
-          <AudioVisualizer features={track.features} getTime={player.getTime} playing={player.playing} reducedMotion={preferences.reducedMotion} highContrast={preferences.highContrast} pausedTime={player.playing ? 0 : time} />
           <div className="scan-pattern-control" role="group" aria-label="Scanner pattern">
             <span>Scanner pattern</span>
             {SCAN_PATTERNS.map(({ value, label }) => (
@@ -137,6 +136,9 @@ export default function PlayerPanel({ track, videoRef, player, preferences, spee
             getTime={player.getTime}
             playing={player.playing}
             pattern={player.scanPattern}
+            reducedMotion={preferences.reducedMotion}
+            highContrast={preferences.highContrast}
+            pausedTime={player.playing ? 0 : time}
           />
           <div className="data-legend" aria-hidden>
             <span>Blue / less motion</span><i /><span>Red / more motion</span>
