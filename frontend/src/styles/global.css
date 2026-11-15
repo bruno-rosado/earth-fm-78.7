@@ -246,6 +246,16 @@ h1 em { color: var(--mint); font-style: normal; }
 
 .track-video { display: block; width: 100%; height: 100%; object-fit: contain; }
 
+.video-scan-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: rgba(248, 219, 169, .85);
+  box-shadow: 0 0 8px rgba(248, 219, 169, .55);
+  pointer-events: none;
+}
+
 .video-caption {
   position: absolute;
   bottom: 11px;

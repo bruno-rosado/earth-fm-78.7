@@ -1,5 +1,6 @@
 import { useEffect, useState, type RefObject } from "react";
 import AudioVisualizer from "./AudioVisualizer";
+import { scanPosition } from "../services/tone/musicMapping.js";
 import type { Track } from "../types";
 import type { TrackPlayer } from "../services/tone/useTrackPlayer";
 
@@ -53,6 +54,11 @@ export default function PlayerPanel({ track, videoRef, player, onClose }: Player
             preload="metadata"
             playsInline
             muted
+          />
+          <span
+            className="video-scan-line"
+            style={{ left: `${scanPosition(time) * 100}%` }}
+            aria-hidden="true"
           />
           <span className="video-caption">NASA SCIENTIFIC VISUALIZATION</span>
         </div>

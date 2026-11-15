@@ -15,9 +15,10 @@ function flatGrid(cell, rows = 4, cols = 6) {
 }
 const sample = (t, grid) => ({ t, brightness: 0.2, motion: 0, contrast: 0, color: {}, grid });
 
-test("scan line moves westward through every longitude once per period", () => {
+test("scan line starts at the left edge and moves eastward through every longitude", () => {
+  assert.equal(scanPosition(0), 0);
+  assert.ok(scanPosition(1) > scanPosition(0));
   assert.ok(Math.abs(scanPosition(0) - scanPosition(SCAN_PERIOD)) < 1e-9);
-  assert.ok(scanPosition(1) < scanPosition(0));
   for (const t of [0, 7.3, 55]) {
     const u = scanPosition(t);
     assert.ok(u >= 0 && u < 1);

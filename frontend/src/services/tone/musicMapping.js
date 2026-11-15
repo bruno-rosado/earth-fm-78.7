@@ -1,7 +1,7 @@
 // The LLM chooses the style; the same style and data always make the same notes.
 //
 // The video is an equirectangular world map. A scan line reads each longitude
-// westward over time, like Hearing Hubble's playhead.
+// eastward over time, like Hearing Hubble's playhead.
 // Each latitude band is a voice (north = high). In a band, current speed sets how
 // often and how loudly it plays, temperature sets tone color, and east/west flow
 // sets stereo pan. The average temperature under the scan line picks the chords.
@@ -11,7 +11,7 @@ const LEAD_RANGE = 24; // semitones from the southern to the northern band
 const CHORD_WARMTH_MARGIN = 0.06; // hysteresis so chords don't flicker on a boundary
 
 export const SCAN_PERIOD = 40; // seconds for one full scan of the map
-export const SCAN_START = 0.1; // map position (0 = 180°W, 0.5 = 0°) at t = 0
+export const SCAN_START = 0; // map position (0 = 180°W, 0.5 = 0°) at t = 0
 
 export const MODES = {
   major: [0, 2, 4, 5, 7, 9, 11],
@@ -60,7 +60,7 @@ const smoothstep = (low, high, value) => {
 
 // Map position (0-1, west to east) under the scan line at a track time.
 export function scanPosition(time) {
-  const u = (SCAN_START - time / SCAN_PERIOD) % 1;
+  const u = (SCAN_START + time / SCAN_PERIOD) % 1;
   return u < 0 ? u + 1 : u;
 }
 
